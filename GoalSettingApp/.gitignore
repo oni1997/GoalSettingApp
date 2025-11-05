@@ -1,0 +1,79 @@
+## Build artifacts
+bin/
+obj/
+out/
+Debug/
+Release/
+[Bb]uild/
+[Ll]ogs/
+
+## User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.swp
+*.vspscc
+*.vssscc
+*.tmp
+*.log
+
+## IDE settings
+.vs/
+.idea/
+*.code-workspace
+
+## System files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+## ASP.NET and Blazor specific
+# Cache and generated files
+wwwroot/dist/
+wwwroot/css/
+wwwroot/js/
+wwwroot/node_modules/
+node_modules/
+
+# If using npm or yarn
+package-lock.json
+yarn.lock
+
+# Temporary files
+*.pidb
+*.mdb
+*.dbmdl
+*.bak
+
+## Rider / JetBrains Rider specific
+.idea/
+*.sln.iml
+.idea/.idea.*
+.idea/.idea.*
+.idea/modules.xml
+.idea/workspace.xml
+.idea/httpRequests/
+.idea/shelf/
+
+## Publish output
+publish/
+*.publish.xml
+
+## Environment / secrets
+.env
+appsettings.*.json
+!appsettings.json  # Keep the default config
+secrets.json
+
+## Docker
+*.container.*
+*.docker-compose.*
+docker-compose.override.yml
+
+## Test results
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
