@@ -1,0 +1,177 @@
+@page "/goals"
+@using GoalSettingApp.Services
+@inject GoalService GoalService
+@rendermode InteractiveServer
+
+<PageTitle>Goals</PageTitle>
+
+<h1>My Goals</h1>
+
+<div class="mb-4">
+    <h3>Add New Goal</h3>
+    <div class="card p-3">
+        <div class="mb-3">
+            <label class="form-label">Title</label>
+            <input type="text" class="form-control" @bind="newGoalTitle" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Description</label>
+            <textarea class="form-control" @bind="newGoalDescription" rows="3"></textarea>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Category</label>
+            <input type="text" class="form-control" @bind="newGoalCategory" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Priority</label>
+            <select class="form-select" @bind="newGoalPriority">
+                <option value="@PriorityLevel.Low">Low</option>
+                <option value="@PriorityLevel.Medium">Medium</option>
+                <option value="@PriorityLevel.High">High</option>
+            </select>
+        </div>
+        <button class="btn btn-primary" @onclick="AddGoal">Add Goal</button>
+    </div>
+</div>
+
+<div>
+    <h3>Goal List</h3>
+    @if (goals.Count == 0)
+    {
+        <p><em>No goals yet. Add your first goal above!</em></p>
+    }
+    else
+    {
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Description</th>
+                    <th>Category</th>
+                    <th>Priority</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var goal in goals)
+                {
+                    <tr>
+                        @if (editingGoalId == goal.Id)
+                        {
+                            <td><input type="text" class="form-control" @bind="editGoalTitle" /></td>
+                            <td><textarea class="form-control" @bind="editGoalDescription"></textarea></td>
+                            <td><input type="text" class="form-control" @bind="editGoalCategory" /></td>
+                            <td>
+                                <select class="form-select" @bind="editGoalPriority">
+                                    <option value="@PriorityLevel.Low">Low</option>
+                                    <option value="@PriorityLevel.Medium">Medium</option>
+                                    <option value="@PriorityLevel.High">High</option>
+                                </select>
+                            </td>
+                            <td>@goal.CreatedAt.ToShortDateString()</td>
+                            <td>
+                                <button class="btn btn-sm btn-success" @onclick="() => SaveEdit(goal.Id)">Save</button>
+                                <button class="btn btn-sm btn-secondary" @onclick="CancelEdit">Cancel</button>
+                            </td>
+                        }
+                        else
+                        {
+                            <td>@goal.Title</td>
+                            <td>@goal.Description</td>
+                            <td>@goal.Category</td>
+                            <td><span class="badge bg-@GetPriorityColor(goal.Priority)">@goal.Priority</span></td>
+                            <td>@goal.CreatedAt.ToShortDateString()</td>
+                            <td>
+                                <button class="btn btn-sm btn-warning" @onclick="() => StartEdit(goal)">Edit</button>
+                                <button class="btn btn-sm btn-danger" @onclick="() => DeleteGoal(goal.Id)">Delete</button>
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    private List<Goal> goals = new List<Goal>();
+    
+    // New goal fields
+    private string newGoalTitle = "";
+    private string newGoalDescription = "";
+    private string newGoalCategory = "";
+    private PriorityLevel newGoalPriority = PriorityLevel.Medium;
+    
+    // Edit goal fields
+    private int? editingGoalId = null;
+    private string editGoalTitle = "";
+    private string editGoalDescription = "";
+    private string editGoalCategory = "";
+    private PriorityLevel editGoalPriority = PriorityLevel.Medium;
+
+    protected override void OnInitialized()
+    {
+        RefreshGoals();
+    }
+
+    private void RefreshGoals()
+    {
+        goals = GoalService.GetAllGoals();
+    }
+
+    private void AddGoal()
+    {
+        if (!string.IsNullOrWhiteSpace(newGoalTitle))
+        {
+            GoalService.AddGoal(newGoalTitle, newGoalDescription, newGoalCategory, newGoalPriority);
+            
+            // Clear form
+            newGoalTitle = "";
+            newGoalDescription = "";
+            newGoalCategory = "";
+            newGoalPriority = PriorityLevel.Medium;
+            
+            RefreshGoals();
+        }
+    }
+
+    private void StartEdit(Goal goal)
+    {
+        editingGoalId = goal.Id;
+        editGoalTitle = goal.Title;
+        editGoalDescription = goal.Description;
+        editGoalCategory = goal.Category;
+        editGoalPriority = goal.Priority;
+    }
+
+    private void SaveEdit(int id)
+    {
+        GoalService.EditGoal(id, editGoalTitle, editGoalDescription, editGoalCategory, editGoalPriority);
+        editingGoalId = null;
+        RefreshGoals();
+    }
+
+    private void CancelEdit()
+    {
+        editingGoalId = null;
+    }
+
+    private void DeleteGoal(int id)
+    {
+        GoalService.DeleteGoal(id);
+        RefreshGoals();
+    }
+
+    private string GetPriorityColor(PriorityLevel priority)
+    {
+        return priority switch
+        {
+            PriorityLevel.Low => "secondary",
+            PriorityLevel.Medium => "warning",
+            PriorityLevel.High => "danger",
+            _ => "secondary"
+        };
+    }
+}
+

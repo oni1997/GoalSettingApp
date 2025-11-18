@@ -1,64 +1,252 @@
 ﻿@page "/weather"
-@attribute [StreamRendering]
+@using GoalSettingApp.Services
+@using GoalSettingApp.Model
+@inject WeatherService WeatherService
+@rendermode InteractiveServer
 
-<PageTitle>Weather</PageTitle>
+<PageTitle>Weather Forecast</PageTitle>
 
-<h1>Weather</h1>
+<h1>Weather Forecast - Cape Town</h1>
 
-<p>This component demonstrates showing data.</p>
+<p>5-day weather forecast from OpenWeatherMap API</p>
 
-@if (forecasts == null)
+@if (isLoading)
 {
-    <p><em>Loading...</em></p>
+    <div class="text-center">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p><em>Loading weather data...</em></p>
+    </div>
+}
+else if (errorMessage != null)
+{
+    <div class="alert alert-danger" role="alert">
+        <strong>Error:</strong> @errorMessage
+    </div>
+}
+else if (dailyForecasts != null && dailyForecasts.Any())
+{
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <h4>@cityName, @country</h4>
+            <p class="text-muted">Click on a day to see detailed hourly forecast</p>
+        </div>
+    </div>
+
+    <!-- 5-Day Overview Cards -->
+    <div class="row mb-4">
+        @foreach (var day in dailyForecasts)
+        {
+            var isSelected = selectedDay?.Date == day.Date;
+            var cardClass = isSelected ? "card border-primary shadow" : "card";
+            var cardStyle = isSelected ? "cursor: pointer; background-color: #e7f3ff;" : "cursor: pointer;";
+
+            <div class="col mb-3">
+                <div class="@cardClass" style="@cardStyle" @onclick="() => SelectDay(day.Date)">
+                    <div class="card-body text-center">
+                        <h6 class="card-title">@day.Date.ToString("ddd")</h6>
+                        <p class="mb-0 text-muted small">@day.Date.ToString("MMM dd")</p>
+                        @if (day.Representative?.Weather != null && day.Representative.Weather.Any())
+                        {
+                            <img src="@day.Representative.Weather.First().IconUrl" alt="@day.Representative.Weather.First().Description" style="width: 60px;" />
+                            <p class="mb-0 small"><strong>@day.Representative.Weather.First().Main</strong></p>
+                        }
+                        @if (day.Representative?.Main != null)
+                        {
+                            <p class="mb-0"><strong>@day.MaxTemp.ToString("F0")°C</strong></p>
+                            <p class="mb-0 text-muted small">@day.MinTemp.ToString("F0")°C</p>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- Selected Day Details -->
+    @if (selectedDay != null)
+    {
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">@selectedDay.Date.ToString("dddd, MMMM dd, yyyy")</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            @if (selectedDay.Representative?.Weather != null && selectedDay.Representative.Weather.Any())
+                            {
+                                <img src="@selectedDay.Representative.Weather.First().IconUrl" alt="@selectedDay.Representative.Weather.First().Description" style="width: 100px;" />
+                                <h4>@selectedDay.Representative.Weather.First().Main</h4>
+                                <p class="text-muted">@selectedDay.Representative.Weather.First().Description</p>
+                            }
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>High:</strong> @selectedDay.MaxTemp.ToString("F1")°C / @selectedDay.MaxTempF.ToString("F1")°F</p>
+                                <p><strong>Low:</strong> @selectedDay.MinTemp.ToString("F1")°C / @selectedDay.MinTempF.ToString("F1")°F</p>
+                                <p><strong>Avg Humidity:</strong> @selectedDay.AvgHumidity.ToString("F0")%</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Avg Wind Speed:</strong> @selectedDay.AvgWindSpeed.ToString("F1") m/s</p>
+                                <p><strong>Avg Pressure:</strong> @selectedDay.AvgPressure.ToString("F0") hPa</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hourly Forecast for Selected Day -->
+                <hr />
+                <h6 class="mb-3">Hourly Forecast</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Weather</th>
+                                <th>Temp (°C)</th>
+                                <th>Feels Like</th>
+                                <th>Humidity</th>
+                                <th>Wind</th>
+                                <th>Rain Prob.</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var forecast in selectedDay.HourlyForecasts)
+                            {
+                                <tr>
+                                    <td><strong>@forecast.DateTime.ToString("HH:mm")</strong></td>
+                                    <td>
+                                        @if (forecast.Weather != null && forecast.Weather.Any())
+                                        {
+                                            <img src="@forecast.Weather.First().IconUrl" alt="@forecast.Weather.First().Description" style="width: 30px;" />
+                                            <span class="small">@forecast.Weather.First().Description</span>
+                                        }
+                                    </td>
+                                    <td>@(forecast.Main != null ? forecast.Main.TempCelsius.ToString("F1") : "N/A")°C</td>
+                                    <td>@(forecast.Main != null ? ((forecast.Main.FeelsLike - 273.15).ToString("F1")) : "N/A")°C</td>
+                                    <td>@(forecast.Main?.Humidity.ToString() ?? "N/A")%</td>
+                                    <td>@(forecast.Wind != null ? forecast.Wind.Speed.ToString("F1") : "N/A") m/s</td>
+                                    <td>@((forecast.Pop * 100).ToString("F0"))%</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> Select a day above to view detailed hourly forecast
+        </div>
+    }
 }
 else
 {
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th aria-label="Temperature in Celsius">Temp. (C)</th>
-                <th aria-label="Temperature in Farenheit">Temp. (F)</th>
-                <th>Summary</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var forecast in forecasts)
-            {
-                <tr>
-                    <td>@forecast.Date.ToShortDateString()</td>
-                    <td>@forecast.TemperatureC</td>
-                    <td>@forecast.TemperatureF</td>
-                    <td>@forecast.Summary</td>
-                </tr>
-            }
-        </tbody>
-    </table>
+    <p><em>No weather data available.</em></p>
 }
 
+<div class="mt-3">
+    <button class="btn btn-primary" @onclick="LoadWeather" disabled="@isLoading">
+        @if (isLoading)
+        {
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            <span> Loading...</span>
+        }
+        else
+        {
+            <span>Refresh Weather</span>
+        }
+    </button>
+</div>
+
+
 @code {
-    private WeatherForecast[]? forecasts;
+    private List<DailyForecast>? dailyForecasts;
+    private DailyForecast? selectedDay;
+    private bool isLoading = true;
+    private string? errorMessage;
+    private string cityName = "";
+    private string country = "";
 
     protected override async Task OnInitializedAsync()
     {
-        // Simulate asynchronous loading to demonstrate streaming rendering
-        await Task.Delay(500);
-
-        var startDate = DateOnly.FromDateTime(DateTime.Now);
-        var summaries = new[] { "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching" };
-        forecasts = Enumerable.Range(1, 5).Select(index => new WeatherForecast
-        {
-            Date = startDate.AddDays(index),
-            TemperatureC = Random.Shared.Next(-20, 55),
-            Summary = summaries[Random.Shared.Next(summaries.Length)]
-        }).ToArray();
+        await LoadWeather();
     }
 
-    private class WeatherForecast
+    private async Task LoadWeather()
     {
-        public DateOnly Date { get; set; }
-        public int TemperatureC { get; set; }
-        public string? Summary { get; set; }
-        public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            var forecast = await WeatherService.GetCapeTownForecastAsync();
+
+            if (forecast?.List != null)
+            {
+                // Group forecasts by day
+                dailyForecasts = forecast.List
+                    .GroupBy(f => f.DateTime.Date)
+                    .Select(g => new DailyForecast
+                    {
+                        Date = g.Key,
+                        HourlyForecasts = g.OrderBy(f => f.DateTime).ToList(),
+                        Representative = g.OrderBy(f => Math.Abs((f.DateTime.Hour - 12))).First(), // Closest to noon
+                        MaxTemp = g.Max(f => f.Main?.TempCelsius ?? 0),
+                        MinTemp = g.Min(f => f.Main?.TempCelsius ?? 0),
+                        AvgHumidity = g.Average(f => f.Main?.Humidity ?? 0),
+                        AvgWindSpeed = g.Average(f => f.Wind?.Speed ?? 0),
+                        AvgPressure = g.Average(f => f.Main?.Pressure ?? 0)
+                    })
+                    .Take(5)
+                    .ToList();
+
+                cityName = forecast.City?.Name ?? "Unknown";
+                country = forecast.City?.Country ?? "";
+
+                // Auto-select first day
+                if (dailyForecasts.Any())
+                {
+                    selectedDay = dailyForecasts.First();
+                }
+            }
+            else
+            {
+                errorMessage = "No weather data received from the API.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load weather data: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void SelectDay(DateTime date)
+    {
+        selectedDay = dailyForecasts?.FirstOrDefault(d => d.Date == date);
+    }
+
+    private class DailyForecast
+    {
+        public DateTime Date { get; set; }
+        public List<WeatherData> HourlyForecasts { get; set; } = new();
+        public WeatherData? Representative { get; set; }
+        public double MaxTemp { get; set; }
+        public double MinTemp { get; set; }
+        public double AvgHumidity { get; set; }
+        public double AvgWindSpeed { get; set; }
+        public double AvgPressure { get; set; }
+
+        public double MaxTempF => (MaxTemp * 9 / 5) + 32;
+        public double MinTempF => (MinTemp * 9 / 5) + 32;
     }
 }
