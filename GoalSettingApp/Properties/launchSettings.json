@@ -7,7 +7,10 @@
         "launchBrowser": true,
         "applicationUrl": "http://localhost:5125",
         "environmentVariables": {
-          "ASPNETCORE_ENVIRONMENT": "Development"
+          "ASPNETCORE_ENVIRONMENT": "Development",
+          "SUPABASE_URL":"https://gkpjgfhoszkquzrguszc.supabase.co",
+          "SUPABASE_KEY":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdrcGpnZmhvc3prcXV6cmd1c3pjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMwMDM2NTksImV4cCI6MjA3ODU3OTY1OX0.xKhZZ_0Q9_cYfwCaZnTWgJTZ8SxQoAI-uIrcZDJOJf0"
+
         }
       },
       "https": {

@@ -7,6 +7,18 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+// Supabase Database Connection
+var url = Environment.GetEnvironmentVariable("SUPABASE_URL");
+var key = Environment.GetEnvironmentVariable("SUPABASE_KEY");
+var options = new Supabase.SupabaseOptions
+{
+    AutoConnectRealtime = true
+};
+var supabase = new Supabase.Client(url, key, options);
+await supabase.InitializeAsync();
+
+// Register Supabase client in DI container
+builder.Services.AddSingleton(supabase);
 // Register HttpClient
 builder.Services.AddHttpClient();
 

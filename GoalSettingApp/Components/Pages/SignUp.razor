@@ -1,0 +1,103 @@
+@page "/signup"
+@using Supabase.Gotrue
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Components.Routing
+@using GoalSettingApp.Models
+
+@inject Supabase.Client Supabase
+@inject NavigationManager Navigation
+
+
+<PageTitle>Sign Up</PageTitle>
+
+<EditForm Model="@signUpModel" OnValidSubmit="@HandleSignUp" FormName="SignUpForm">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="mb-3">
+        <label for="name" class="form-label">Name</label>
+        <InputText id="name" class="form-control" @bind-Value="signUpModel.Name" />
+        <ValidationMessage For="@(() => signUpModel.Name)"/>
+    </div>
+
+    <div class="mb-3">
+        <label for="email" class="form-label">Email</label>
+        <InputText id="email" class="form-control" @bind-Value="signUpModel.Email" />
+        <ValidationMessage For="@(() => signUpModel.Email)"/>
+    </div>
+
+    <div class="mb-3">
+        <label for="password" class="form-label">Password</label>
+        <InputText id="password" type="password" class="form-control" @bind-Value="signUpModel.Password" />
+        <ValidationMessage For="@(() => signUpModel.Password)" />
+    </div>
+<button type="submit" class="btn btn-primary" disabled="@isLoading">
+        @if (isLoading)
+        {
+            <span class="spinner-border spinner-border-sm" role="status"></span>
+            <span> Signing up...</span>
+        }
+        else
+        {
+            <span>Sign Up</span>
+        }
+    </button>
+</EditForm>
+
+@if (!string.IsNullOrEmpty(Message))
+{
+    <div class="alert @AlertClass mt-3">@Message</div>
+}
+
+@code {
+    [SupplyParameterFromForm]
+    private SignUpModel signUpModel { get; set; } = new();
+    private bool isLoading = false;
+    private string Message = "";
+    private string AlertClass = "";
+
+    private async Task HandleSignUp()
+    {
+        isLoading = true;
+        Message = "";
+        StateHasChanged();
+
+        try
+        {
+            var session = await Supabase.Auth.SignUp(signUpModel.Email, signUpModel.Password, new Supabase.Gotrue.SignUpOptions
+            {
+                Data = new Dictionary<string, object>
+                {
+                    { "display_name", signUpModel.Name }
+                }
+            });
+
+            if (session?.User?.ConfirmedAt != null)
+            {
+                await Supabase.Auth.SignIn(signUpModel.Email, signUpModel.Password);
+                Navigation.NavigateTo("/");
+            }
+            else
+            {
+                Message = "Sign-up successful! Please check your email to confirm your account.";
+                AlertClass = "alert-success";
+            }
+        }
+        catch (Microsoft.AspNetCore.Components.NavigationException)
+        {
+            // Navigation is expected, let it propagate
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Message = $"Error: {ex.Message}";
+            AlertClass = "alert-danger";
+        }
+
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+}
