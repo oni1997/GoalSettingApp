@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace GoalSettingApp.Model
+namespace GoalSettingApp.Models
 {
     public class WeatherForecastResponse
     {

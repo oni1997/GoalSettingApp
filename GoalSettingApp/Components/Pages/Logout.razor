@@ -1,0 +1,47 @@
+@page "/logout"
+@attribute [AllowAnonymous]
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Authentication.Cookies
+
+@inject Supabase.Client Supabase
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IAuthenticationService AuthService
+@inject IHttpContextAccessor HttpContextAccessor
+
+<PageTitle>Logging out...</PageTitle>
+
+<p>Logging you out...</p>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Sign out from Supabase
+            await Supabase.Auth.SignOut();
+
+            // Sign out from cookie auth
+            var httpContext = HttpContextAccessor.HttpContext;
+            if (httpContext != null)
+            {
+                await AuthService.SignOutAsync(
+                    httpContext,
+                    CookieAuthenticationDefaults.AuthenticationScheme,
+                    null
+                );
+            }
+
+            // Notify Blazor auth state changed
+            ((GoalSettingApp.Services.SupabaseAuthenticationStateProvider)AuthStateProvider)
+                .NotifyAuthenticationStateChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Logout error: {ex.Message}");
+        }
+
+        // Redirect to login
+        Navigation.NavigateTo("/login", true);
+    }
+}

@@ -1,5 +1,5 @@
 using System.Text.Json;
-using GoalSettingApp.Model;
+using GoalSettingApp.Models;
 
 namespace GoalSettingApp.Services
 {
