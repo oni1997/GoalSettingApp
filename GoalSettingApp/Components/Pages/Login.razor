@@ -1,0 +1,126 @@
+@page "/login"
+@attribute [AllowAnonymous]
+@layout LoginLayout
+@using GoalSettingApp.Components.Layout
+@using GoalSettingApp.Services
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Supabase.Gotrue
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Components.Routing
+@using GoalSettingApp.Models
+
+@inject Supabase.Client Supabase
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+@inject Microsoft.AspNetCore.Authentication.IAuthenticationService AuthService
+@inject IHttpContextAccessor HttpContextAccessor
+
+<PageTitle>Login</PageTitle>
+
+<div class="px-4 bg-light border rounded d-flex py-2 mb-3">
+    <h3>Log In</h3>
+</div>
+
+<EditForm Model="@loginModel" OnValidSubmit="@HandleLogin" FormName="LoginForm">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="mb-3">
+        <label for="email" class="form-label">Email</label>
+        <InputText id="email" class="form-control" @bind-Value="loginModel.Email"/>
+        <ValidationMessage For="@(() => loginModel.Email)" />
+    </div>
+
+    <div class="mb-3">
+        <label for="password" class="form-label">Password</label>
+        <InputText id="password" type="password" class="form-control" @bind-Value="loginModel.Password"/>
+        <ValidationMessage For="@(() => loginModel.Password)"/>
+    </div>
+
+    <button type="submit" class="btn btn-primary mb-3" disabled="@isLoading">
+        @if (isLoading)
+        {
+            <span class="spinner-border spinner-border-sm" role="status"></span>
+            <span> Logging in...</span>
+        }
+        else
+        {
+            <span>Log In</span>
+        }
+    </button>
+
+</EditForm>
+<p>Don't have an account? <NavLink href="signup"><span>Sign up here</span></NavLink></p>
+
+@if (!string.IsNullOrEmpty(Message))
+{
+    <div class="alert @AlertClass mt-3">@Message</div>
+}
+
+@code {
+    [SupplyParameterFromForm]
+    private LoginModel loginModel { get; set; } = new();
+    private bool isLoading = false;
+    private string Message = "";
+    private string AlertClass = "";
+
+    private async Task HandleLogin()
+    {
+        isLoading = true;
+        Message = "";
+        StateHasChanged();
+
+        try
+        {
+            var session = await Supabase.Auth.SignIn(loginModel.Email, loginModel.Password);
+
+            if (session?.User != null)
+            {
+                // Create claims for cookie auth
+                var claims = new List<System.Security.Claims.Claim>
+                {
+                    new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, session.User.Id),
+                    new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Email, session.User.Email ?? ""),
+                    new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, session.User.UserMetadata?["display_name"]?.ToString() ?? session.User.Email ?? "")
+                };
+
+                var identity = new System.Security.Claims.ClaimsIdentity(claims, Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme);
+                var principal = new System.Security.Claims.ClaimsPrincipal(identity);
+
+                // Sign in to cookie auth
+                var httpContext = HttpContextAccessor.HttpContext;
+                if (httpContext != null)
+                {
+                    await AuthService.SignInAsync(httpContext, Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme, principal, null);
+                }
+
+                // Notify Blazor auth state changed
+                ((SupabaseAuthenticationStateProvider)AuthStateProvider).NotifyAuthenticationStateChanged();
+
+                Navigation.NavigateTo("/", true);
+            }
+            else
+            {
+                Message = "Login failed. Please check your credentials.";
+                AlertClass = "alert-danger";
+            }
+        }
+        catch (Microsoft.AspNetCore.Components.NavigationException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Message = $"Error: {ex.Message}";
+            AlertClass = "alert-danger";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+
+
+    }
+}

@@ -1,4 +1,10 @@
 @page "/signup"
+@attribute [AllowAnonymous]
+@layout LoginLayout
+@using GoalSettingApp.Components.Layout
+@using GoalSettingApp.Services
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
 @using Supabase.Gotrue
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Components.Routing
@@ -6,9 +12,14 @@
 
 @inject Supabase.Client Supabase
 @inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
 
 
 <PageTitle>Sign Up</PageTitle>
+
+<div class="px-4 bg-light border rounded d-flex py-2 mb-3">
+    <h3>Sign Up</h3>
+</div>
 
 <EditForm Model="@signUpModel" OnValidSubmit="@HandleSignUp" FormName="SignUpForm">
     <DataAnnotationsValidator />
@@ -31,7 +42,7 @@
         <InputText id="password" type="password" class="form-control" @bind-Value="signUpModel.Password" />
         <ValidationMessage For="@(() => signUpModel.Password)" />
     </div>
-<button type="submit" class="btn btn-primary" disabled="@isLoading">
+    <button type="submit" class="btn btn-primary mb-3" disabled="@isLoading">
         @if (isLoading)
         {
             <span class="spinner-border spinner-border-sm" role="status"></span>
@@ -43,6 +54,7 @@
         }
     </button>
 </EditForm>
+<p>Already have an account? <NavLink href="login"><span>Sign in here</span></NavLink></p>
 
 @if (!string.IsNullOrEmpty(Message))
 {
@@ -75,6 +87,7 @@
             if (session?.User?.ConfirmedAt != null)
             {
                 await Supabase.Auth.SignIn(signUpModel.Email, signUpModel.Password);
+                ((SupabaseAuthenticationStateProvider)AuthStateProvider).NotifyAuthenticationStateChanged();
                 Navigation.NavigateTo("/");
             }
             else
@@ -85,7 +98,6 @@
         }
         catch (Microsoft.AspNetCore.Components.NavigationException)
         {
-            // Navigation is expected, let it propagate
             throw;
         }
         catch (Exception ex)
