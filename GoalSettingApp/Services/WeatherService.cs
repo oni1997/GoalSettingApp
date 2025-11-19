@@ -16,7 +16,7 @@ namespace GoalSettingApp.Services
             _configuration = configuration;
             
             //get API key from environment variable first, then from configuration
-            _apiKey = Environment.GetEnvironmentVariable("API_KEY") 
+            _apiKey = Environment.GetEnvironmentVariable("WEATHER_API_KEY") 
                       ?? _configuration["OpenWeatherMap:ApiKey"] 
                       ?? string.Empty;
         }
@@ -31,7 +31,7 @@ namespace GoalSettingApp.Services
         {
             if (string.IsNullOrEmpty(_apiKey))
             {
-                throw new InvalidOperationException("API_KEY environment variable is not set");
+                throw new InvalidOperationException("WEATHER_API_KEY environment variable is not set");
             }
 
             var url = $"{BaseUrl}?lat={latitude}&lon={longitude}&appid={_apiKey}";
