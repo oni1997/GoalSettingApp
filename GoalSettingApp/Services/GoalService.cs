@@ -1,32 +1,60 @@
+using Microsoft.AspNetCore.Components.Authorization;
+using System.Security.Claims;
+
 namespace GoalSettingApp.Services
 {
     public class GoalService
     {
-        private List<Goal> _goals = new List<Goal>();
-        private int _nextId = 1;
+        private readonly Supabase.Client _supabase;
+        private readonly AuthenticationStateProvider _authStateProvider;
+
+        public GoalService(Supabase.Client supabase, AuthenticationStateProvider authStateProvider)
+        {
+            _supabase = supabase;
+            _authStateProvider = authStateProvider;
+        }
 
         /// <summary>
-        /// Adds a new goal to the collection
+        /// Gets the current user's ID from the authentication state
+        /// </summary>
+        private async Task<string?> GetCurrentUserIdAsync()
+        {
+            var authState = await _authStateProvider.GetAuthenticationStateAsync();
+            return authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        }
+
+        /// <summary>
+        /// Adds a new goal to the database
         /// </summary>
         /// <param name="title">The title of the goal</param>
         /// <param name="description">The description of the goal</param>
         /// <param name="category">The category of the goal</param>
         /// <param name="priority">The priority level of the goal</param>
         /// <returns>The newly created goal</returns>
-        public Goal AddGoal(string title, string description, string category, PriorityLevel priority = PriorityLevel.Medium)
+        public async Task<Goal?> AddGoalAsync(string title, string description, string category, PriorityLevel priority = PriorityLevel.Medium)
         {
+            var userId = await GetCurrentUserIdAsync();
+            if (string.IsNullOrEmpty(userId))
+            {
+                return null;
+            }
+
             var goal = new Goal
             {
-                Id = _nextId++,
+                UserId = userId,
                 Title = title,
                 Description = description,
                 Category = category,
                 Priority = priority,
-                CreatedAt = DateTime.Now
+                CreatedAt = DateTime.UtcNow,
+                IsCompleted = false
             };
 
-            _goals.Add(goal);
-            return goal;
+            var response = await _supabase
+                .From<Goal>()
+                .Insert(goal);
+
+            return response.Models.FirstOrDefault();
         }
 
         /// <summary>
@@ -38,19 +66,27 @@ namespace GoalSettingApp.Services
         /// <param name="category">The new category</param>
         /// <param name="priority">The new priority level</param>
         /// <returns>True if the goal was found and updated, false otherwise</returns>
-        public bool EditGoal(int id, string title, string description, string category, PriorityLevel priority)
+        public async Task<bool> EditGoalAsync(int id, string title, string description, string category, PriorityLevel priority)
         {
-            var goal = _goals.FirstOrDefault(g => g.Id == id);
-            
-            if (goal == null)
+            var userId = await GetCurrentUserIdAsync();
+            if (string.IsNullOrEmpty(userId))
             {
                 return false;
             }
 
-            goal.Title = title;
-            goal.Description = description;
-            goal.Category = category;
-            goal.Priority = priority;
+            var goal = new Goal
+            {
+                Id = id,
+                Title = title,
+                Description = description,
+                Category = category,
+                Priority = priority
+            };
+
+            await _supabase
+                .From<Goal>()
+                .Where(g => g.Id == id && g.UserId == userId)
+                .Update(goal);
 
             return true;
         }
@@ -60,26 +96,40 @@ namespace GoalSettingApp.Services
         /// </summary>
         /// <param name="id">The ID of the goal to delete</param>
         /// <returns>True if the goal was found and deleted, false otherwise</returns>
-        public bool DeleteGoal(int id)
+        public async Task<bool> DeleteGoalAsync(int id)
         {
-            var goal = _goals.FirstOrDefault(g => g.Id == id);
-            
-            if (goal == null)
+            var userId = await GetCurrentUserIdAsync();
+            if (string.IsNullOrEmpty(userId))
             {
                 return false;
             }
 
-            _goals.Remove(goal);
+            await _supabase
+                .From<Goal>()
+                .Where(g => g.Id == id && g.UserId == userId)
+                .Delete();
+
             return true;
         }
 
         /// <summary>
-        /// Gets all goals
+        /// Gets all goals for the current user
         /// </summary>
         /// <returns>A list of all goals</returns>
-        public List<Goal> GetAllGoals()
+        public async Task<List<Goal>> GetAllGoalsAsync()
         {
-            return _goals.ToList();
+            var userId = await GetCurrentUserIdAsync();
+            if (string.IsNullOrEmpty(userId))
+            {
+                return new List<Goal>();
+            }
+
+            var response = await _supabase
+                .From<Goal>()
+                .Where(g => g.UserId == userId)
+                .Get();
+
+            return response.Models;
         }
 
         /// <summary>
@@ -87,29 +137,62 @@ namespace GoalSettingApp.Services
         /// </summary>
         /// <param name="id">The ID of the goal to retrieve</param>
         /// <returns>The goal if found, null otherwise</returns>
-        public Goal? GetGoalById(int id)
+        public async Task<Goal?> GetGoalByIdAsync(int id)
         {
-            return _goals.FirstOrDefault(g => g.Id == id);
+            var userId = await GetCurrentUserIdAsync();
+            if (string.IsNullOrEmpty(userId))
+            {
+                return null;
+            }
+
+            var response = await _supabase
+                .From<Goal>()
+                .Where(g => g.Id == id && g.UserId == userId)
+                .Get();
+
+            return response.Models.FirstOrDefault();
         }
 
         /// <summary>
-        /// Gets goals by category
+        /// Gets goals by category for the curret user
         /// </summary>
         /// <param name="category">The category to filter by</param>
         /// <returns>A list of goals in the specified category</returns>
-        public List<Goal> GetGoalsByCategory(string category)
+        public async Task<List<Goal>> GetGoalsByCategoryAsync(string category)
         {
-            return _goals.Where(g => g.Category == category).ToList();
+            var userId = await GetCurrentUserIdAsync();
+            if (string.IsNullOrEmpty(userId))
+            {
+                return new List<Goal>();
+            }
+
+            var response = await _supabase
+                .From<Goal>()
+                .Where(g => g.UserId == userId && g.Category == category)
+                .Get();
+
+            return response.Models;
         }
 
         /// <summary>
-        /// Gets goals by priority level
+        /// Gets goals by priority level for the current user
         /// </summary>
         /// <param name="priority">The priority level to filter by</param>
         /// <returns>A list of goals with the specified priority</returns>
-        public List<Goal> GetGoalsByPriority(PriorityLevel priority)
+        public async Task<List<Goal>> GetGoalsByPriorityAsync(PriorityLevel priority)
         {
-            return _goals.Where(g => g.Priority == priority).ToList();
+            var userId = await GetCurrentUserIdAsync();
+            if (string.IsNullOrEmpty(userId))
+            {
+                return new List<Goal>();
+            }
+
+            var response = await _supabase
+                .From<Goal>()
+                .Where(g => g.UserId == userId && g.PriorityString == priority.ToString())
+                .Get();
+
+            return response.Models;
         }
     }
 }

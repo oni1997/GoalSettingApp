@@ -111,21 +111,21 @@
     private string editGoalCategory = "";
     private PriorityLevel editGoalPriority = PriorityLevel.Medium;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        RefreshGoals();
+        await RefreshGoalsAsync();
     }
 
-    private void RefreshGoals()
+    private async Task RefreshGoalsAsync()
     {
-        goals = GoalService.GetAllGoals();
+        goals = await GoalService.GetAllGoalsAsync();
     }
 
-    private void AddGoal()
+    private async Task AddGoal()
     {
         if (!string.IsNullOrWhiteSpace(newGoalTitle))
         {
-            GoalService.AddGoal(newGoalTitle, newGoalDescription, newGoalCategory, newGoalPriority);
+            await GoalService.AddGoalAsync(newGoalTitle, newGoalDescription, newGoalCategory, newGoalPriority);
             
             // Clear form
             newGoalTitle = "";
@@ -133,7 +133,7 @@
             newGoalCategory = "";
             newGoalPriority = PriorityLevel.Medium;
             
-            RefreshGoals();
+            await RefreshGoalsAsync();
         }
     }
 
@@ -146,11 +146,11 @@
         editGoalPriority = goal.Priority;
     }
 
-    private void SaveEdit(int id)
+    private async Task SaveEdit(int id)
     {
-        GoalService.EditGoal(id, editGoalTitle, editGoalDescription, editGoalCategory, editGoalPriority);
+        await GoalService.EditGoalAsync(id, editGoalTitle, editGoalDescription, editGoalCategory, editGoalPriority);
         editingGoalId = null;
-        RefreshGoals();
+        await RefreshGoalsAsync();
     }
 
     private void CancelEdit()
@@ -158,10 +158,10 @@
         editingGoalId = null;
     }
 
-    private void DeleteGoal(int id)
+    private async Task DeleteGoal(int id)
     {
-        GoalService.DeleteGoal(id);
-        RefreshGoals();
+        await GoalService.DeleteGoalAsync(id);
+        await RefreshGoalsAsync();
     }
 
     private string GetPriorityColor(PriorityLevel priority)

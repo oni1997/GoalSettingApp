@@ -38,8 +38,8 @@ builder.Services.AddCascadingAuthenticationState(); // Makes auth state availabl
 // Register HttpClient
 builder.Services.AddHttpClient();
 
-// Register GoalService as a singleton
-builder.Services.AddSingleton<GoalService>();
+// Register GoalService as scoped
+builder.Services.AddScoped<GoalService>();
 
 // Register WeatherService
 builder.Services.AddScoped<WeatherService>();
