@@ -69,21 +69,19 @@ namespace GoalSettingApp.Services
         public async Task<bool> EditGoalAsync(int id, string title, string description, string category, PriorityLevel priority)
         {
             var userId = await GetCurrentUserIdAsync();
+            
+            if (string.IsNullOrEmpty(userId))
+            {
+                return false;
+            }
+            
             var goalExists = await GetGoalByIdAsync(id);
 
             if (goalExists == null)
             {
                 return false;
             }
-
             
-
-
-            if (string.IsNullOrEmpty(userId))
-            {
-                return false;
-            }
-
             var goal = new Goal
             {
                 Id = id,
