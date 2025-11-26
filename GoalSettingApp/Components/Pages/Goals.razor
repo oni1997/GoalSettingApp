@@ -1,4 +1,4 @@
-@page "/goalsduplicate"
+@page "/goals"
 @attribute [Authorize]
 @using GoalSettingApp.Services
 @using GoalSettingApp.Extensions
@@ -11,7 +11,11 @@
     }
 
     .input-mobile {
-        width: 90%;
+        max-width: 90%;
+    }
+
+    .small-text {
+        font-size: .9em;
     }
 
     @@media (min-width: 768px) {
@@ -30,7 +34,7 @@
 
 <h1>My Goals</h1>
 
-<div class="search-container d-flex flex-column flex-md-row align-items-start gap-2">
+<div class="search-container d-flex flex-column flex-md-row align-items-start gap-2 ">
     <div class="order-2 mb-1 order-md-1 col-md-3  align-self-start align-self-md-end">
         <button class="btn btn-primary " @onclick="OpenDialog">Add Goal</button>
     </div>
@@ -52,7 +56,7 @@
             <option value="High">High</option>
         </select>
     </div>
-    <div class="order-1 mb-1 order-md-2 col-md-4 align-self-start align-self-md-end">
+    <div class="order-1 mb-1 order-md-2 col-md-1 align-self-start align-self-md-end">
         <button class="btn btn-primary mt-2 " @onclick="ApplyFilters">
             Search
         </button>
@@ -111,7 +115,7 @@
     }
     else
     {
-        <div class="table-responsive">
+        <div class="table-responsive-lg">
             <table class="table table-striped">
                 <thead>
                     <tr>
@@ -148,7 +152,7 @@
                             }
                             else
                             {
-                                <td>@goal.Title</td>
+                                <td class="table-text">@goal.Title</td>
                                 <td>@goal.Description.FirstCharToUpper()</td>
                                 <td>@goal.Category.FirstCharToUpper()</td>
                                 <td><span class="badge bg-@GetPriorityColor(goal.Priority)">@goal.Priority</span></td>
