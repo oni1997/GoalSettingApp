@@ -26,6 +26,9 @@ namespace GoalSettingApp
         [JsonProperty("priority")]
         public string PriorityString { get; set; } = "Medium";
 
+        [Column("due_date")]
+        public DateTime? DueDate { get; set; }
+
         [Column("created_at")]
         public DateTime CreatedAt { get; set; }
 

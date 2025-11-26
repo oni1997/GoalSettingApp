@@ -31,7 +31,7 @@ namespace GoalSettingApp.Services
         /// <param name="category">The category of the goal</param>
         /// <param name="priority">The priority level of the goal</param>
         /// <returns>The newly created goal</returns>
-        public async Task<Goal?> AddGoalAsync(string title, string description, string category, PriorityLevel priority = PriorityLevel.Medium)
+        public async Task<Goal?> AddGoalAsync(string title, string description, string category, PriorityLevel priority, DateTime? dueDate)
         {
             var userId = await GetCurrentUserIdAsync();
             if (string.IsNullOrEmpty(userId))
@@ -46,6 +46,7 @@ namespace GoalSettingApp.Services
                 Description = description,
                 Category = category,
                 Priority = priority,
+                DueDate = dueDate,
                 CreatedAt = DateTime.UtcNow,
                 IsCompleted = false
             };
@@ -66,22 +67,22 @@ namespace GoalSettingApp.Services
         /// <param name="category">The new category</param>
         /// <param name="priority">The new priority level</param>
         /// <returns>True if the goal was found and updated, false otherwise</returns>
-        public async Task<bool> EditGoalAsync(int id, string title, string description, string category, PriorityLevel priority)
+        public async Task<bool> EditGoalAsync(int id, string title, string description, string category, PriorityLevel priority, DateTime? dueDate)
         {
             var userId = await GetCurrentUserIdAsync();
-            
+
             if (string.IsNullOrEmpty(userId))
             {
                 return false;
             }
-            
+
             var goalExists = await GetGoalByIdAsync(id);
 
             if (goalExists == null)
             {
                 return false;
             }
-            
+
             var goal = new Goal
             {
                 Id = id,
@@ -90,6 +91,7 @@ namespace GoalSettingApp.Services
                 Description = description,
                 Category = category,
                 Priority = priority,
+                DueDate = dueDate ?? goalExists.DueDate,
                 CreatedAt = goalExists.CreatedAt,
             };
 
@@ -203,6 +205,30 @@ namespace GoalSettingApp.Services
                 .Get();
 
             return response.Models;
+        }
+
+        public async Task<bool> ToggleGoalCompletedAsync(int id, bool isCompleted)
+        {
+            var userId = await GetCurrentUserIdAsync();
+            if (string.IsNullOrEmpty(userId))
+            {
+                return false;
+            }
+
+            var existingGoal = await GetGoalByIdAsync(id);
+            if (existingGoal == null)
+            {
+                return false;
+            }
+
+            existingGoal.IsCompleted = isCompleted;
+
+            await _supabase
+                .From<Goal>()
+                .Where(g => g.Id == id && g.UserId == userId)
+                .Update(existingGoal);
+
+            return true;
         }
     }
 }
