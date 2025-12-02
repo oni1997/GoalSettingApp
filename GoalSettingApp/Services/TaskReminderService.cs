@@ -3,29 +3,52 @@ using GoalSettingApp.Models;
 namespace GoalSettingApp.Services
 {
     /// <summary>
-    /// Background service that checks for upcoming task due dates and sends reminder emails
+    /// Background service that sends daily reminder emails at configured morning and evening times
     /// </summary>
     public class TaskReminderService : BackgroundService
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<TaskReminderService> _logger;
-        private readonly TimeSpan _checkInterval = TimeSpan.FromHours(1); // Check every hour
+        private readonly TimeSpan _checkInterval = TimeSpan.FromMinutes(1); // Check every minute for precise timing
+        private readonly TimeSpan _morningTime;
+        private readonly TimeSpan _eveningTime;
+        private DateTime _lastMorningReminder = DateTime.MinValue;
+        private DateTime _lastEveningReminder = DateTime.MinValue;
 
         public TaskReminderService(IServiceProvider serviceProvider, ILogger<TaskReminderService> logger)
         {
             _serviceProvider = serviceProvider;
             _logger = logger;
+
+            // Parse configured times from environment variables
+            _morningTime = ParseTime(Environment.GetEnvironmentVariable("Morning_Time"), new TimeSpan(8, 0, 0));
+            _eveningTime = ParseTime(Environment.GetEnvironmentVariable("Evening_Time"), new TimeSpan(20, 0, 0));
+
+            _logger.LogInformation("Configured reminder times - Morning: {Morning}, Evening: {Evening}",
+                _morningTime, _eveningTime);
+        }
+
+        private static TimeSpan ParseTime(string? timeString, TimeSpan defaultValue)
+        {
+            if (string.IsNullOrEmpty(timeString))
+                return defaultValue;
+
+            if (TimeSpan.TryParse(timeString, out var result))
+                return result;
+
+            return defaultValue;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _logger.LogInformation("Task Reminder Service started");
+            _logger.LogInformation("Task Reminder Service started - Morning: {Morning}, Evening: {Evening}",
+                _morningTime.ToString(@"hh\:mm"), _eveningTime.ToString(@"hh\:mm"));
 
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
                 {
-                    await CheckAndSendRemindersAsync();
+                    await CheckAndSendScheduledRemindersAsync();
                 }
                 catch (Exception ex)
                 {
@@ -38,20 +61,49 @@ namespace GoalSettingApp.Services
             _logger.LogInformation("Task Reminder Service stopped");
         }
 
-        private async Task CheckAndSendRemindersAsync()
+        private async Task CheckAndSendScheduledRemindersAsync()
+        {
+            var now = DateTime.Now;
+            var currentTime = now.TimeOfDay;
+            var today = now.Date;
+
+            // Check if it's time for morning reminder (within a 1-minute window)
+            var isMorningTime = IsWithinTimeWindow(currentTime, _morningTime);
+            var isEveningTime = IsWithinTimeWindow(currentTime, _eveningTime);
+
+            // Morning reminder - only send once per day
+            if (isMorningTime && _lastMorningReminder.Date != today)
+            {
+                _logger.LogInformation("Sending morning reminders at {Time}", currentTime);
+                await SendDailyRemindersToAllUsersAsync(isMorning: true);
+                _lastMorningReminder = now;
+            }
+
+            // Evening reminder - only send once per day
+            if (isEveningTime && _lastEveningReminder.Date != today)
+            {
+                _logger.LogInformation("Sending evening reminders at {Time}", currentTime);
+                await SendDailyRemindersToAllUsersAsync(isMorning: false);
+                _lastEveningReminder = now;
+            }
+        }
+
+        private static bool IsWithinTimeWindow(TimeSpan currentTime, TimeSpan targetTime)
+        {
+            // Allow a 1-minute window for the check
+            var diff = Math.Abs((currentTime - targetTime).TotalMinutes);
+            return diff < 1;
+        }
+
+        private async Task SendDailyRemindersToAllUsersAsync(bool isMorning)
         {
             using var scope = _serviceProvider.CreateScope();
             var supabase = scope.ServiceProvider.GetRequiredService<Supabase.Client>();
             var emailService = scope.ServiceProvider.GetRequiredService<EmailService>();
 
-            _logger.LogInformation("Checking for tasks with upcoming due dates...");
-
-            var today = DateTime.UtcNow.Date;
-            var tomorrow = today.AddDays(1);
-
             try
             {
-                // Get all incomplete goals with due dates
+                // Get all incomplete goals
                 var response = await supabase
                     .From<Goal>()
                     .Where(g => g.IsCompleted == false)
@@ -59,54 +111,40 @@ namespace GoalSettingApp.Services
 
                 var goals = response.Models;
 
-                foreach (var goal in goals)
+                // Group goals by user
+                var goalsByUser = goals.GroupBy(g => g.UserId);
+
+                foreach (var userGoals in goalsByUser)
                 {
-                    if (goal.DueDate == null) continue;
+                    var userId = userGoals.Key;
+                    var userPendingTasks = userGoals.ToList();
 
-                    var dueDate = goal.DueDate.Value.Date;
-                    string? reminderType = null;
+                    if (userPendingTasks.Count == 0) continue;
 
-                    if (dueDate < today)
+                    var userEmail = await GetUserEmailAsync(supabase, userId);
+                    var userName = await GetUserNameAsync(supabase, userId);
+
+                    if (!string.IsNullOrEmpty(userEmail))
                     {
-                        reminderType = "Overdue";
-                    }
-                    else if (dueDate == today)
-                    {
-                        reminderType = "Due Today";
-                    }
-                    else if (dueDate == tomorrow)
-                    {
-                        reminderType = "Due Tomorrow";
-                    }
+                        await emailService.SendDailyReminderAsync(
+                            userEmail,
+                            userName ?? "User",
+                            userPendingTasks,
+                            isMorning
+                        );
 
-                    if (reminderType != null)
-                    {
-                        // Get user email from Supabase Auth
-                        var userEmail = await GetUserEmailAsync(supabase, goal.UserId);
-                        var userName = await GetUserNameAsync(supabase, goal.UserId);
-
-                        if (!string.IsNullOrEmpty(userEmail))
-                        {
-                            await emailService.SendTaskReminderAsync(
-                                userEmail,
-                                userName ?? "User",
-                                goal.Title,
-                                goal.Description,
-                                goal.DueDate.Value,
-                                reminderType
-                            );
-
-                            _logger.LogInformation(
-                                "Sent {ReminderType} reminder for task '{Task}' to {Email}",
-                                reminderType, goal.Title, userEmail
-                            );
-                        }
+                        _logger.LogInformation(
+                            "Sent {TimeOfDay} daily reminder to {Email} with {Count} tasks",
+                            isMorning ? "morning" : "evening",
+                            userEmail,
+                            userPendingTasks.Count
+                        );
                     }
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to process task reminders");
+                _logger.LogError(ex, "Failed to send daily reminders");
             }
         }
 

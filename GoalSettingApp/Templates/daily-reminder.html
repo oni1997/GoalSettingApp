@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Task Reminder</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f4f4f4; font-family: Arial, sans-serif;">
+  <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden;">
+      
+      <!-- Header -->
+      <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 30px; text-align: center;">
+        <h1 style="color: #ffffff; margin: 0; font-size: 24px;">{{greeting_emoji}} {{greeting_text}}</h1>
+        <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 14px;">Your Daily Task Summary</p>
+      </div>
+      
+      <!-- Content -->
+      <div style="padding: 30px;">
+        <p style="color: #374151; font-size: 16px; margin: 0 0 20px 0;">
+          Hello <strong>{{to_name}}</strong>,
+        </p>
+        
+        <p style="color: #374151; font-size: 16px; margin: 0 0 20px 0;">
+          {{intro_message}}
+        </p>
+        
+        <!-- Task List -->
+        <div style="margin: 20px 0;">
+          {{task_list}}
+        </div>
+        
+        <!-- CTA Button -->
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="{{app_url}}" style="display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 6px; font-weight: bold; font-size: 16px;">
+            View Your Goals
+          </a>
+        </div>
+        
+        <p style="color: #6b7280; font-size: 14px; margin: 20px 0 0 0;">
+          {{closing_message}}
+        </p>
+      </div>
+      
+      <!-- Footer -->
+      <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+        <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+          You're receiving this daily reminder because you have pending tasks.
+        </p>
+        <p style="color: #9ca3af; font-size: 12px; margin: 10px 0 0 0;">
+          Goal Setting App - Achieve More, One Goal at a Time
+        </p>
+      </div>
+      
+    </div>
+  </div>
+</body>
+</html>
+

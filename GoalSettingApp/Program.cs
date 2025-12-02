@@ -1,3 +1,4 @@
+using GoalSettingApp;
 using GoalSettingApp.Components;
 using GoalSettingApp.Services;
 using GoalSettingApp.Models;
@@ -81,6 +82,53 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.UseAntiforgery();
+
+// Test email endpoints (development only)
+if (app.Environment.IsDevelopment())
+{
+    app.MapGet("/api/test-email", async (EmailService emailService) =>
+    {
+        var result = await emailService.SendTaskReminderAsync(
+            toEmail: "onesmusmaenza@gmail.com",
+            toName: "Test User",
+            taskTitle: "Test Task",
+            taskDescription: "This is a test email to verify the email service is working correctly.",
+            dueDate: DateTime.Now.AddDays(1),
+            reminderType: "tomorrow"
+        );
+
+        return result
+            ? Results.Ok(new { success = true, message = "Test email sent successfully!" })
+            : Results.BadRequest(new { success = false, message = "Failed to send test email. Check logs for details." });
+    });
+
+    // Test daily reminder endpoint
+    app.MapGet("/api/test-daily-reminder/{type}", async (string type, EmailService emailService, Supabase.Client supabaseClient) =>
+    {
+        var isMorning = type.ToLower() == "morning";
+
+        // Get incomplete goals to include in email
+        var response = await supabaseClient
+            .From<Goal>()
+            .Where(g => g.IsCompleted == false)
+            .Get();
+
+        var pendingTasks = response.Models.ToList();
+        var taskCount = pendingTasks.Count;
+
+        var result = await emailService.SendDailyReminderAsync(
+            toEmail: "onesmusmaenza@gmail.com",
+            toName: "Test User",
+            pendingTasks: pendingTasks,
+            isMorning: isMorning
+        );
+
+        return result
+            ? Results.Ok(new { success = true, message = $"Daily {type} reminder sent with {taskCount} tasks!" })
+            : Results.BadRequest(new { success = false, message = "Failed to send daily reminder. Check logs for details." });
+    });
+}
+
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
