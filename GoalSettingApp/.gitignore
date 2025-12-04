@@ -67,6 +67,9 @@ appsettings.*.json
 !appsettings.json  # Keep the default config
 secrets.json
 
+# Launch settings with real secrets (use launchSettings.template.json as reference)
+**/Properties/launchSettings.json
+
 ## Docker
 *.container.*
 *.docker-compose.*

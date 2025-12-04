@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "http": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "applicationUrl": "http://localhost:5200",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "SUPABASE_URL": "<your-supabase-url>",
+        "SUPABASE_KEY": "<your-supabase-anon-key>",
+        "SUPABASE_SERVICE_KEY": "<your-supabase-service-role-key>",
+        "WEATHER_API_KEY": "<your-openweathermap-api-key>",
+        "SMTP_HOST": "smtp.gmail.com",
+        "SMTP_PORT": "587",
+        "SMTP_USER": "<your-email>",
+        "SMTP_PASS": "<your-app-password>",
+        "FROM_EMAIL": "<your-email>",
+        "FROM_NAME": "Goal Setting App",
+        "APP_URL": "http://localhost:5200",
+        "Morning_Time": "08:00",
+        "Evening_Time": "20:00"
+      }
+    },
+    "https": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "applicationUrl": "https://localhost:7200;http://localhost:5200",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
