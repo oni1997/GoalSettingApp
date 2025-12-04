@@ -27,7 +27,6 @@
         <RowTemplate Context="goal">
             <tr>
                 <td>@goal.Title</td>
-                <td>@goal.Category</td>
                 <td>
                     <span class="badge bg-@PriorityBadgeHelper.GetPriorityColor(goal.Priority)">
                         @goal.Priority
@@ -47,7 +46,6 @@
         <RowTemplate Context="goal">
             <tr>
                 <td>@goal.Title</td>
-                <td>@goal.Category</td>
                 <td>
                     <span class="badge bg-@PriorityBadgeHelper.GetPriorityColor(goal.Priority)">
                         @goal.Priority
@@ -65,7 +63,7 @@
 
 @code{
     private List<Goal> _goals = new List<Goal>();
-    private List<string> _headers = new List<string> { "Title", "Category", "Priority", "Due Date" };
+    private List<string> _headers = new List<string> { "Title", "Priority", "Due Date" };
 
     protected override async Task OnInitializedAsync()
     {
