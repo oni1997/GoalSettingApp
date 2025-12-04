@@ -4,6 +4,7 @@
 @using GoalSettingApp.Services
 @using GoalSettingApp.Helpers
 @inject GoalService GoalService
+@inject NavigationManager Navigation
 @rendermode InteractiveServer
 
 <PageTitle>Dashboard</PageTitle>
@@ -89,6 +90,10 @@
     </div>
 </div>
 
+<div>
+    <button class="btn btn-primary" @onclick="GoToGoals">Add a Goal</button>
+</div>
+
 
 
 
@@ -104,6 +109,7 @@
         _goals = await GoalService.GetAllGoalsAsync();
     }
 
+    // Get dates for mini calendar
     private List<DateTime> GetWeekDays()
     {
         var today = DateTime.Today;
@@ -115,5 +121,11 @@
     private int GetGoalCountForDay(DateTime day)
     {
         return _goals.Count(g => !g.IsCompleted && g.DueDate.HasValue && g.DueDate.Value.Date == day.Date);
+    }
+
+    // On click navigate to Goals page
+    private void GoToGoals()
+    {
+        Navigation.NavigateTo("/goals");
     }
 }
