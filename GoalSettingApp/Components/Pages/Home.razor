@@ -7,7 +7,6 @@
 @rendermode InteractiveServer
 
 <PageTitle>Dashboard</PageTitle>
-
 <AuthorizeView>
     <Authorized>
         <h1>Hello, @context.User.Identity?.Name!</h1>
@@ -16,6 +15,13 @@
         <h1>Hello, Guest!</h1>
     </NotAuthorized>
 </AuthorizeView>
+
+@if (OverdueGoals.Any())
+{
+    <div class="alert alert-danger">
+        You have @OverdueGoals.Count overdue goal@(OverdueGoals.Count > 1 ? "s" : "")!
+    </div>
+}
 
 <div class="d-flex flex-column flex-lg-row justify-content-around gap-2 mt-4">
     <GoalTable 
@@ -58,16 +64,56 @@
     </GoalTable>
 </div>
 
+<div class="week-calendar mt-4 mb-4">
+    <h5>This Week</h5>
+    <div class="d-flex justify-content-between gap-2">
+    @foreach (var day in GetWeekDays())
+    {
+        var count = GetGoalCountForDay(day);
+        var isToday = day.Date == DateTime.Today;
+        <div class="w-25 day-cell text-center p-2 rounded @(isToday ? "bg-primary text-white" : "bg-light")">
+            <div class="day-name small">@day.ToString("ddd")</div>
+            <div class="day-number fw-bold">@day.Day</div>
+            @if (count > 0)
+            {
+                <span class="badge @(count >= 3 ? "bg-danger" : count >= 2 ? "bg-warning" : "bg-success") mt-1">
+                    @count
+                </span>
+            }
+            else
+            {
+                <span class="badge bg-secondary mt-1 opacity-25">-</span>
+            }
+        </div>
+    }
+    </div>
+</div>
+
 
 
 
 @code{
     private List<Goal> _goals = new List<Goal>();
     private List<string> _headers = new List<string> { "Title", "Priority", "Due Date" };
+    private List<Goal> OverdueGoals => _goals
+        .Where(g => !g.IsCompleted && g.DueDate.HasValue && g.DueDate.Value.Date < DateTime.Today)
+        .ToList();
 
     protected override async Task OnInitializedAsync()
     {
         _goals = await GoalService.GetAllGoalsAsync();
     }
 
+    private List<DateTime> GetWeekDays()
+    {
+        var today = DateTime.Today;
+        return Enumerable.Range(0, 7)
+            .Select(i => today.AddDays(i))
+            .ToList();
+    }
+
+    private int GetGoalCountForDay(DateTime day)
+    {
+        return _goals.Count(g => !g.IsCompleted && g.DueDate.HasValue && g.DueDate.Value.Date == day.Date);
+    }
 }
