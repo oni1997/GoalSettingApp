@@ -46,6 +46,22 @@
     .col-due { width: 12%; }
     .col-created { width: 12%; }
     .col-actions { width: 14%; }
+
+    .archived-collapse {
+        max-height: 0;
+        overflow: hidden;
+        opacity: 0;
+        transition: max-height 0.4s ease, opacity 0.3s ease;
+    }
+
+    .archived-collapse.show {
+        max-height: 1500px;
+        opacity: 1;
+    }
+
+    .archived-table-container {
+        min-height: 650px;
+    }
 </style>
 
 <PageTitle>Goals</PageTitle>
@@ -125,19 +141,63 @@
     </div>
 }
 
+@if (_showEditDialog)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5)">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Goal</h5>
+                    <button type="button" class="btn-close" @onclick="CloseEditDialog"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Title</label>
+                        <input type="text" class="form-control" @bind="_editGoalTitle" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" @bind="_editGoalDescription" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Category</label>
+                        <input type="text" class="form-control" @bind="_editGoalCategory" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Priority</label>
+                        <select class="form-select" @bind="_editGoalPriority">
+                            <option value="@PriorityLevel.Low">Low</option>
+                            <option value="@PriorityLevel.Medium">Medium</option>
+                            <option value="@PriorityLevel.High">High</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Due Date</label>
+                        <input type="date" class="form-control" @bind="_editGoalDueDate" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CloseEditDialog">Cancel</button>
+                    <button class="btn btn-primary" @onclick="SaveEditAndClose">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 <div class="mb-4">
 
 </div>
 
 <div>
-    <h3>Goal List</h3>
+    <h3>Goals</h3>
     @if (_goals.Count == 0)
     {
         <p><em>No goals yet. Add your first goal above!</em></p>
     }
     else
     {
-        <div class="goals-container">
+        <div class="goals-container  border border-rounded-5 p-4">
             <table class="table table-striped goals-table">
                 <thead>
                     <tr>
@@ -154,46 +214,21 @@
                 <tbody>
                     @foreach (var goal in ActiveGoals)
                     {
-                        <tr>
-                            @if (_editingGoalId == goal.Id)
-                            {
-                                <td><input type="text" class="form-control" @bind="_editGoalTitle" /></td>
-                                <td><textarea class="form-control" @bind="_editGoalDescription"></textarea></td>
-                                <td><input type="text" class="form-control" @bind="_editGoalCategory" /></td>
-                                <td>
-                                    <select class="form-select" @bind="_editGoalPriority">
-                                        <option value="@PriorityLevel.Low">Low</option>
-                                        <option value="@PriorityLevel.Medium">Medium</option>
-                                        <option value="@PriorityLevel.High">High</option>
-                                    </select>
-                                </td>
-                                <td>
-                                    <input type="date" class="form-control" @bind="_editGoalDueDate" />
-                                </td>
-                                <td>@goal.CreatedAt.ToShortDateString()</td>
-                                <td class="d-flex">
-                                    <button class="btn btn-sm btn-success mb-1 mb-md-0"
-                                        @onclick="() => SaveEdit(goal.Id)">Save</button>
-                                    <button class="btn btn-sm btn-secondary" @onclick="CancelEdit">Cancel</button>
-                                </td>
-                            }
-                            else
-                            {
-                                <td>
-                                    <input type="checkbox" class="form-check-input" @onchange="() => ToggleCompletion(goal.Id, true)" />
-                                </td>
-                                <td class="table-text col-title">@goal.Title</td>
-                                <td class="col-description">@goal.Description.FirstCharToUpper()</td>
-                                <td class="col-category">@goal.Category.FirstCharToUpper()</td>
-                                <td class="col-priority"><span class="badge bg-@GetPriorityColor(goal.Priority)">@goal.Priority</span></td>
-                                <td class="col-due">@(goal.DueDate?.ToString("MMM d, yyyy") ?? "—")</td>
-                                <td class="col-created">@goal.CreatedAt.ToString("MMM d, yyyy")</td>
-                                <td class="col-actions">
-                                    <button class="btn btn-sm btn-warning mb-1 mb-md-1 mb-lg-0"
-                                        @onclick="() => StartEdit(goal)">Edit</button>
-                                    <button class="btn btn-sm btn-danger" @onclick="() => DeleteGoal(goal.Id)">Delete</button>
-                                </td>
-                            }
+                        <tr @key="goal.Id">
+                            <td>
+                                <input type="checkbox" class="form-check-input" checked="@goal.IsCompleted" @onchange="() => ToggleCompletion(goal.Id, true)" />
+                            </td>
+                            <td class="table-text col-title">@goal.Title</td>
+                            <td class="col-description">@goal.Description.FirstCharToUpper()</td>
+                            <td class="col-category">@goal.Category.FirstCharToUpper()</td>
+                            <td class="col-priority"><span class="badge bg-@GetPriorityColor(goal.Priority)">@goal.Priority</span></td>
+                            <td class="col-due">@(goal.DueDate?.ToString("MMM d, yyyy") ?? "—")</td>
+                            <td class="col-created">@goal.CreatedAt.ToString("MMM d, yyyy")</td>
+                            <td class="col-actions">
+                                <button class="btn btn-sm btn-warning mb-1 mb-md-1 mb-lg-0"
+                                    @onclick="() => StartEdit(goal)">Edit</button>
+                                <button class="btn btn-sm btn-danger" @onclick="() => DeleteGoal(goal.Id)">Delete</button>
+                            </td>
                         </tr>
                     }
                 </tbody>
@@ -203,43 +238,62 @@
 </div>
 
 @* ARCHIVED GOALS *@
-<div>
+<div class="mb-4">
 @if (ArchivedGoals.Any())
 {
-    <h3 class="mt-5">Archived Goals</h3>
-    <div class="goals-container">
-        <table class="table table-striped goals-table">
-            <thead>
-                <tr>
-                    <th class="col-title">Title</th>
-                    <th class="col-description">Description</th>
-                    <th class="col-category">Category</th>
-                    <th class="col-priority">Priority</th>
-                    <th class="col-due">Due Date</th>
-                    <th class="col-created">Created</th>
-                    <th class="col-actions">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var goal in ArchivedGoals)
-                {
-                    <tr class="text-muted">
-                        <td>@goal.Title</td>
-                        <td>@goal.Description.FirstCharToUpper()</td>
-                        <td>@goal.Category.FirstCharToUpper()</td>
-                        <td><span class="badge bg-@GetPriorityColor(goal.Priority)">@goal.Priority</span></td>
-                        <td>@(goal.DueDate?.ToString("MMM d, yyyy") ?? "—")</td>
-                        <td>@goal.CreatedAt.ToString("MMM d, yyyy")</td>
-                        <td>
-                            <button class="btn btn-sm btn-outline-secondary" 
-                                @onclick="() => ToggleCompletion(goal.Id, false)">Restore</button>
-                            <button class="btn btn-sm btn-danger" 
-                                @onclick="() => DeleteGoal(goal.Id)">Delete</button>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+    <div class="d-flex align-items-center mt-5 gap-3">
+        <h3 class="mb-0">Archived Goals (@ArchivedGoals.Count)</h3>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="ToggleArchived">
+            @(_showArchived ? "Hide" : "View")
+        </button>
+    </div>
+
+    <div class="archived-collapse @(_showArchived ? "show" : "")">
+        <div class="goals-container mt-3">
+            <div class="archived-table-container border border-rounded-5 p-4">
+                <table class="table table-striped goals-table">
+                    <thead>
+                        <tr>
+                            <th class="col-title">Title</th>
+                            <th class="col-description">Description</th>
+                            <th class="col-category">Category</th>
+                            <th class="col-priority">Priority</th>
+                            <th class="col-due">Due Date</th>
+                            <th class="col-created">Created</th>
+                            <th class="col-actions">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var goal in PagedArchivedGoals)
+                        {
+                            <tr class="text-muted" @key="goal.Id">
+                                <td>@goal.Title</td>
+                                <td>@goal.Description.FirstCharToUpper()</td>
+                                <td>@goal.Category.FirstCharToUpper()</td>
+                                <td><span class="badge bg-@GetPriorityColor(goal.Priority)">@goal.Priority</span></td>
+                                <td>@(goal.DueDate?.ToString("MMM d, yyyy") ?? "—")</td>
+                                <td>@goal.CreatedAt.ToString("MMM d, yyyy")</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-secondary"
+                                        @onclick="() => ToggleCompletion(goal.Id, false)">Restore</button>
+                                    <button class="btn btn-sm btn-danger"
+                                        @onclick="() => DeleteGoal(goal.Id)">Delete</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-2">
+                <button class="btn btn-sm btn-outline-secondary"
+                    disabled="@(_archivedCurrentPage <=1)"
+                    @onclick="ArchivedPreviousPage">Previous</button>
+                <span>Page @_archivedCurrentPage of @ArchivedTotalPages</span>
+                <button class="btn btn-sm btn-outline-secondary"
+                    disabled="@(_archivedCurrentPage >= ArchivedTotalPages)"
+                    @onclick="ArchivedNextPage">Next</button>
+            </div>
+        </div>
     </div>
 }
 </div>
@@ -247,9 +301,13 @@
 @code {
 
     private bool _showDialog = false;
-
+    private bool _showArchived = false;
+    private bool _showEditDialog = false;
     private void OpenDialog() => _showDialog = true;
     private void CloseDialog() => _showDialog = false;
+    private void OpenEditDialog() => _showEditDialog = true;
+    private void CloseEditDialog() => _showEditDialog = false;
+    private void ToggleArchived() => _showArchived = !_showArchived;
     private List<Goal> _goals = new List<Goal>();
 
     // New goal fields
@@ -276,6 +334,15 @@
     private List<Goal> _filteredGoals = new List<Goal>();
     private List<Goal> ActiveGoals => _filteredGoals.Where(g => !g.IsCompleted).ToList();
     private List<Goal> ArchivedGoals => _filteredGoals.Where(g => g.IsCompleted).ToList();
+
+    // Pagination Variables
+    private int _archivedPageSize = 10;
+    private int _archivedCurrentPage = 1;
+    private int ArchivedTotalPages => (int)Math.Ceiling(ArchivedGoals.Count / (double)_archivedPageSize);
+    private List<Goal> PagedArchivedGoals => ArchivedGoals
+        .Skip((_archivedCurrentPage - 1) * _archivedPageSize)
+        .Take(_archivedPageSize)
+        .ToList();
 
     private void ApplyFilters()
     {
@@ -324,6 +391,15 @@
         }
     }
 
+    private async Task SaveEditAndClose()
+    {
+        if (_editingGoalId.HasValue)
+        {
+            await SaveEdit(_editingGoalId.Value);
+            CloseEditDialog();
+        }
+    }
+
     private void StartEdit(Goal goal)
     {
         _editingGoalId = goal.Id;
@@ -332,6 +408,7 @@
         _editGoalCategory = goal.Category;
         _editGoalPriority = goal.Priority;
         _editGoalDueDate = goal.DueDate;
+        OpenEditDialog();
     }
 
     private async Task SaveEdit(int id)
@@ -339,11 +416,6 @@
         await GoalService.EditGoalAsync(id, _editGoalTitle, _editGoalDescription, _editGoalCategory, _editGoalPriority, _editGoalDueDate);
         _editingGoalId = null;
         await RefreshGoalsAsync();
-    }
-
-    private void CancelEdit()
-    {
-        _editingGoalId = null;
     }
 
     private async Task DeleteGoal(int id)
@@ -374,4 +446,18 @@
         await GoalService.ToggleGoalCompletedAsync(id, completed);
         await RefreshGoalsAsync();
     }
+
+    // Archived Goals Navigation
+    private void ArchivedPreviousPage()
+    {
+        if (_archivedCurrentPage > 1)
+            _archivedCurrentPage--;
+    }
+
+    private void ArchivedNextPage()
+    {
+        if (_archivedCurrentPage < ArchivedTotalPages)
+            _archivedCurrentPage++;
+    }
+
 }
