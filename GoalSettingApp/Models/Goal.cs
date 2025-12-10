@@ -35,12 +35,29 @@ namespace GoalSettingApp
         [Column("is_completed")]
         public bool IsCompleted { get; set; } = false;
 
+        [Column("recurrence")]
+        [JsonProperty("recurrence")]
+        public string RecurrenceString { get; set; } = "None";
+
+        [Column("completion_count")]
+        public int CompletionCount { get; set; } = 0;
+
         [JsonIgnore]
         public PriorityLevel Priority
         {
             get => Enum.TryParse<PriorityLevel>(PriorityString, out var result) ? result : PriorityLevel.Medium;
             set => PriorityString = value.ToString();
         }
+
+        [JsonIgnore]
+        public RecurrenceType Recurrence
+        {
+            get => Enum.TryParse<RecurrenceType>(RecurrenceString, out var result) ? result : RecurrenceType.None;
+            set => RecurrenceString = value.ToString();
+        }
+
+        [JsonIgnore]
+        public bool IsRecurring => Recurrence != RecurrenceType.None;
 
     }
 
@@ -49,6 +66,14 @@ namespace GoalSettingApp
         Low,
         Medium,
         High
+    }
+
+    public enum RecurrenceType
+    {
+        None,
+        Daily,
+        Weekly,
+        Monthly
     }
 }
 

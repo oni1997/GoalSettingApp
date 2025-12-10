@@ -139,6 +139,15 @@
                         <label class="form-label">Due Date</label>
                         <input type="date" class="form-control" @bind="_newGoalDueDate" />
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">Recurrence</label>
+                        <select class="form-select" @bind="_newGoalRecurrence">
+                            <option value="@RecurrenceType.None">None</option>
+                            <option value="@RecurrenceType.Daily">Daily</option>
+                            <option value="@RecurrenceType.Weekly">Weekly</option>
+                            <option value="@RecurrenceType.Monthly">Monthly</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button class="btn btn-secondary" @onclick="CloseDialog">Cancel</button>
@@ -183,6 +192,15 @@
                         <label class="form-label">Due Date</label>
                         <input type="date" class="form-control" @bind="_editGoalDueDate" />
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">Recurrence</label>
+                        <select class="form-select" @bind="_editGoalRecurrence">
+                            <option value="@RecurrenceType.None">None</option>
+                            <option value="@RecurrenceType.Daily">Daily</option>
+                            <option value="@RecurrenceType.Weekly">Weekly</option>
+                            <option value="@RecurrenceType.Monthly">Monthly</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button class="btn btn-secondary" @onclick="CloseEditDialog">Cancel</button>
@@ -226,7 +244,13 @@
                             <td @onclick:stopPropagation>
                                 <input type="checkbox" class="form-check-input" checked="@goal.IsCompleted" @onchange="() => ToggleCompletion(goal.Id, true)" />
                             </td>
-                            <td class="table-text col-title text-shortening-cell" title="@goal.Title">@goal.Title</td>
+                            <td class="table-text col-title text-shortening-cell" title="@goal.Title">
+                                @if (goal.IsRecurring)
+                                {
+                                    <span title="Recurring (@goal.Recurrence)">↻</span>
+                                }
+                                @goal.Title
+                            </td>
                             <td class="col-description text-shortening-cell" title="@goal.Description.FirstCharToUpper()">@goal.Description.FirstCharToUpper()</td>
                             <td class="col-category text-shortening-cell" title="@goal.Category.FirstCharToUpper()">@goal.Category.FirstCharToUpper()</td>
                             <td class="col-priority"><span class="badge bg-@GetPriorityColor(goal.Priority)">@goal.Priority</span></td>
@@ -334,6 +358,7 @@
     private string _newGoalCategory = "";
     private PriorityLevel _newGoalPriority = PriorityLevel.Medium;
     private DateTime? _newGoalDueDate = DateTime.Today;
+    private RecurrenceType _newGoalRecurrence = RecurrenceType.None;
 
     // Edit goal fields
     private int? _editingGoalId = null;
@@ -342,6 +367,7 @@
     private string _editGoalCategory = "";
     private PriorityLevel _editGoalPriority = PriorityLevel.Medium;
     private DateTime? _editGoalDueDate = null;
+    private RecurrenceType _editGoalRecurrence = RecurrenceType.None;
 
     // Search fields
     private string _searchTitle = "";
@@ -396,7 +422,7 @@
     {
         if (!string.IsNullOrWhiteSpace(_newGoalTitle))
         {
-            await GoalService.AddGoalAsync(_newGoalTitle, _newGoalDescription, _newGoalCategory, _newGoalPriority, _newGoalDueDate);
+            await GoalService.AddGoalAsync(_newGoalTitle, _newGoalDescription, _newGoalCategory, _newGoalPriority, _newGoalDueDate, _newGoalRecurrence);
 
             // Clear form
             _newGoalTitle = "";
@@ -404,6 +430,7 @@
             _newGoalCategory = "";
             _newGoalPriority = PriorityLevel.Medium;
             _newGoalDueDate = DateTime.Today;
+            _newGoalRecurrence = RecurrenceType.None;
 
             await RefreshGoalsAsync();
         }
@@ -426,12 +453,13 @@
         _editGoalCategory = goal.Category;
         _editGoalPriority = goal.Priority;
         _editGoalDueDate = goal.DueDate;
+        _editGoalRecurrence = goal.Recurrence;
         OpenEditDialog();
     }
 
     private async Task SaveEdit(int id)
     {
-        await GoalService.EditGoalAsync(id, _editGoalTitle, _editGoalDescription, _editGoalCategory, _editGoalPriority, _editGoalDueDate);
+        await GoalService.EditGoalAsync(id, _editGoalTitle, _editGoalDescription, _editGoalCategory, _editGoalPriority, _editGoalDueDate, _editGoalRecurrence);
         _editingGoalId = null;
         await RefreshGoalsAsync();
     }

@@ -31,7 +31,7 @@ namespace GoalSettingApp.Services
         /// <param name="category">The category of the goal</param>
         /// <param name="priority">The priority level of the goal</param>
         /// <returns>The newly created goal</returns>
-        public async Task<Goal?> AddGoalAsync(string title, string description, string category, PriorityLevel priority, DateTime? dueDate)
+        public async Task<Goal?> AddGoalAsync(string title, string description, string category, PriorityLevel priority, DateTime? dueDate, RecurrenceType recurrence = RecurrenceType.None)
         {
             var userId = await GetCurrentUserIdAsync();
             if (string.IsNullOrEmpty(userId))
@@ -48,7 +48,8 @@ namespace GoalSettingApp.Services
                 Priority = priority,
                 DueDate = dueDate,
                 CreatedAt = DateTime.UtcNow,
-                IsCompleted = false
+                IsCompleted = false,
+                Recurrence = recurrence
             };
 
             var response = await _supabase
@@ -67,7 +68,7 @@ namespace GoalSettingApp.Services
         /// <param name="category">The new category</param>
         /// <param name="priority">The new priority level</param>
         /// <returns>True if the goal was found and updated, false otherwise</returns>
-        public async Task<bool> EditGoalAsync(int id, string title, string description, string category, PriorityLevel priority, DateTime? dueDate)
+        public async Task<bool> EditGoalAsync(int id, string title, string description, string category, PriorityLevel priority, DateTime? dueDate, RecurrenceType recurrence = RecurrenceType.None)
         {
             var userId = await GetCurrentUserIdAsync();
 
@@ -93,6 +94,8 @@ namespace GoalSettingApp.Services
                 Priority = priority,
                 DueDate = dueDate ?? goalExists.DueDate,
                 CreatedAt = goalExists.CreatedAt,
+                Recurrence = recurrence,
+                CompletionCount = goalExists.CompletionCount
             };
 
             await _supabase
@@ -221,7 +224,17 @@ namespace GoalSettingApp.Services
                 return false;
             }
 
-            existingGoal.IsCompleted = isCompleted;
+            // Handle recurring goals differently
+            if (isCompleted && existingGoal.IsRecurring)
+            {
+                existingGoal.CompletionCount++;
+                existingGoal.DueDate = RecurrenceHelper.CalculateNextDueDate(existingGoal.DueDate, existingGoal.Recurrence);
+                existingGoal.IsCompleted = false; // Reset for next occurrence
+            }
+            else
+            {
+                existingGoal.IsCompleted = isCompleted;
+            }
 
             await _supabase
                 .From<Goal>()
@@ -230,6 +243,34 @@ namespace GoalSettingApp.Services
 
             return true;
         }
+
+        /// <summary>
+        /// Updates the recurrence setting for a goal
+        /// </summary>
+        public async Task<bool> UpdateGoalRecurrenceAsync(int id, RecurrenceType recurrence)
+        {
+            var userId = await GetCurrentUserIdAsync();
+            if (string.IsNullOrEmpty(userId))
+            {
+                return false;
+            }
+
+            var existingGoal = await GetGoalByIdAsync(id);
+            if (existingGoal == null)
+            {
+                return false;
+            }
+
+            existingGoal.Recurrence = recurrence;
+
+            await _supabase
+                .From<Goal>()
+                .Where(g => g.Id == id && g.UserId == userId)
+                .Update(existingGoal);
+
+            return true;
+        }
+
     }
 }
 

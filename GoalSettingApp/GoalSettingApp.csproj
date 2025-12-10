@@ -7,6 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="GoalSettingApp.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="MailKit" Version="4.14.1" />
     <PackageReference Include="Supabase" Version="1.1.1" />
   </ItemGroup>
