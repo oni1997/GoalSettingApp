@@ -53,6 +53,9 @@ builder.Services.AddScoped<GoalService>();
 // Register WeatherService
 builder.Services.AddScoped<WeatherService>();
 
+// Register UserSettingsService
+builder.Services.AddScoped<UserSettingsService>();
+
 // Email Settings - configure via environment variables
 var emailSettings = new EmailSettings
 {
@@ -68,8 +71,12 @@ builder.Services.AddSingleton(emailSettings);
 // Register EmailService
 builder.Services.AddScoped<EmailService>();
 
-// Register TaskReminderService (Background Service)
+// Register UserInfoCache (singleton for caching user data)
+builder.Services.AddSingleton<UserInfoCache>();
+
+// Register Background Services for reminders
 builder.Services.AddHostedService<TaskReminderService>();
+builder.Services.AddHostedService<RecurringGoalService>();
 
 var app = builder.Build();
 

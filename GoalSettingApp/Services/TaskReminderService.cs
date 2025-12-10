@@ -10,6 +10,7 @@ namespace GoalSettingApp.Services
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<TaskReminderService> _logger;
         private readonly HttpClient _httpClient;
+        private readonly UserInfoCache _userCache;
         private readonly string _supabaseUrl;
         private readonly string _supabaseServiceKey;
         private readonly TimeSpan _checkInterval = TimeSpan.FromMinutes(1); // Check every minute for precise timing
@@ -18,11 +19,16 @@ namespace GoalSettingApp.Services
         private DateTime _lastMorningReminder = DateTime.MinValue;
         private DateTime _lastEveningReminder = DateTime.MinValue;
 
-        public TaskReminderService(IServiceProvider serviceProvider, ILogger<TaskReminderService> logger, IHttpClientFactory httpClientFactory)
+        public TaskReminderService(
+            IServiceProvider serviceProvider, 
+            ILogger<TaskReminderService> logger, 
+            IHttpClientFactory httpClientFactory,
+            UserInfoCache userCache)
         {
             _serviceProvider = serviceProvider;
             _logger = logger;
             _httpClient = httpClientFactory.CreateClient();
+            _userCache = userCache;
 
             _supabaseUrl = Environment.GetEnvironmentVariable("SUPABASE_URL") ?? "";
             _supabaseServiceKey = Environment.GetEnvironmentVariable("SUPABASE_SERVICE_KEY") ?? "";
@@ -163,6 +169,13 @@ namespace GoalSettingApp.Services
 
         private async Task<(string? email, string? name)> GetUserInfoAsync(string userId)
         {
+            // Check cache first
+            var cached = _userCache.Get(userId);
+            if (cached.HasValue)
+            {
+                return (cached.Value.email, cached.Value.name);
+            }
+
             try
             {
                 // Use Supabase Admin API to get user info from auth.users
@@ -187,7 +200,12 @@ namespace GoalSettingApp.Services
                         displayName = nameProp.GetString();
                     }
 
-                    return (email, displayName ?? email);
+                    var result = (email, displayName ?? email);
+                    
+                    // Cache the result
+                    _userCache.Set(userId, result.email, result.Item2);
+                    
+                    return result;
                 }
 
                 _logger.LogWarning("Failed to get user info for {UserId}: {StatusCode}", userId, response.StatusCode);

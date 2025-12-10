@@ -3,12 +3,14 @@
 @using GoalSettingApp.Services
 @using GoalSettingApp.Extensions
 @using GoalSettingApp.Components
+@using static GoalSettingApp.Components.ToastNotification
 @inject GoalService GoalService
 @rendermode InteractiveServer
 
 <style>
     .search-container {
         width: 100%;
+        animation: slideIn 0.5s ease;
     }
 
     .input-mobile {
@@ -29,8 +31,10 @@
             max-width: 9em;
         }
     }
+
     .goals-container {
         overflow-x: auto;
+        animation: fadeIn 0.6s ease;
     }
 
     .goals-table {
@@ -69,6 +73,106 @@
 
     .archived-table-container {
         min-height: 650px;
+    }
+
+    /* Smooth animations */
+    @@keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    @@keyframes slideIn {
+        from {
+            transform: translateY(-20px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    /* Enhanced table row hover */
+    .goals-table tbody tr {
+        transition: all 0.2s ease;
+    }
+
+    .goals-table tbody tr:hover {
+        background-color: rgba(13, 110, 253, 0.05) !important;
+        transform: translateX(5px);
+    }
+
+    /* Checkbox animation */
+    .form-check-input {
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .form-check-input:checked {
+        animation: checkBounce 0.3s ease;
+    }
+
+    @@keyframes checkBounce {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.2); }
+    }
+
+    /* Button improvements */
+    .btn {
+        transition: all 0.2s ease;
+    }
+
+    .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+
+    .btn:active {
+        transform: translateY(0);
+    }
+
+    /* Loading state */
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9998;
+        animation: fadeIn 0.2s;
+    }
+
+    /* Mobile responsive cards for small screens */
+    @@media (max-width: 767px) {
+        .goals-table {
+            display: none;
+        }
+
+        .goal-card {
+            display: block !important;
+            margin-bottom: 1rem;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 1rem;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            transition: all 0.2s ease;
+        }
+
+        .goal-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+    }
+
+    @@media (min-width: 768px) {
+        .goal-card {
+            display: none !important;
+        }
     }
 </style>
 
@@ -211,6 +315,32 @@
     </div>
 }
 
+@* Toast Notification *@
+<ToastNotification Message="@_toastMessage"
+                   Type="@_toastType"
+                   IsVisible="@_showToast"
+                   OnHidden="@(() => _showToast = false)" />
+
+@* Confirmation Dialog *@
+<ConfirmDialog IsVisible="@_showConfirmDialog"
+               Title="@_confirmTitle"
+               Message="@_confirmMessage"
+               Icon="@_confirmIcon"
+               ConfirmText="@_confirmButtonText"
+               ConfirmButtonClass="@_confirmButtonClass"
+               OnConfirm="@_confirmCallback"
+               OnCancel="@(() => _showConfirmDialog = false)" />
+
+@* Loading Overlay *@
+@if (_isLoading)
+{
+    <div class="loading-overlay">
+        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+
 <div class="mb-4">
 
 </div>
@@ -259,12 +389,36 @@
                             <td class="col-actions" @onclick:stopPropagation>
                                 <button class="btn btn-sm btn-warning mb-1 mb-md-1 mb-lg-0"
                                     @onclick="() => StartEdit(goal)">Edit</button>
-                                <button class="btn btn-sm btn-danger" @onclick="() => DeleteGoal(goal.Id)">Delete</button>
+                                <button class="btn btn-sm btn-danger" @onclick="() => ConfirmDelete(goal.Id, goal.Title)">Delete</button>
                             </td>
                         </tr>
                     }
                 </tbody>
             </table>
+        </div>
+
+        @* Mobile Card View *@
+        <div class="mobile-cards-container">
+            @foreach (var goal in ActiveGoals)
+            {
+                <div class="goal-card" @key="goal.Id">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h5 class="mb-0">@goal.Title</h5>
+                        <input type="checkbox" class="form-check-input ms-2" checked="@goal.IsCompleted" 
+                               @onchange="() => ToggleCompletion(goal.Id, true)" />
+                    </div>
+                    <p class="text-muted small mb-2">@goal.Description.FirstCharToUpper()</p>
+                    <div class="d-flex gap-2 flex-wrap mb-2">
+                        <span class="badge bg-@GetPriorityColor(goal.Priority)">@goal.Priority</span>
+                        <span class="badge bg-secondary">@goal.Category.FirstCharToUpper()</span>
+                        <span class="badge bg-info">@(goal.DueDate?.ToString("MMM d, yyyy") ?? "No due date")</span>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-warning flex-fill" @onclick="() => StartEdit(goal)">Edit</button>
+                        <button class="btn btn-sm btn-danger flex-fill" @onclick="() => ConfirmDelete(goal.Id, goal.Title)">Delete</button>
+                    </div>
+                </div>
+            }
         </div>
     }
 </div>
@@ -352,6 +506,24 @@
     private void ToggleArchived() => _showArchived = !_showArchived;
     private List<Goal> _goals = new List<Goal>();
 
+    // Toast notification fields
+    private bool _showToast = false;
+    private string _toastMessage = "";
+    private ToastType _toastType = ToastType.Info;
+
+    // Confirmation dialog fields
+    private bool _showConfirmDialog = false;
+    private string _confirmTitle = "";
+    private string _confirmMessage = "";
+    private string _confirmIcon = "⚠️";
+    private string _confirmButtonText = "Confirm";
+    private string _confirmButtonClass = "btn-danger";
+    private EventCallback _confirmCallback;
+    private int _goalIdToDelete;
+
+    // Loading state
+    private bool _isLoading = false;
+
     // New goal fields
     private string _newGoalTitle = "";
     private string _newGoalDescription = "";
@@ -414,8 +586,16 @@
 
     private async Task RefreshGoalsAsync()
     {
-        _goals = await GoalService.GetAllGoalsAsync();
-        ApplyFilters();
+        _isLoading = true;
+        try
+        {
+            _goals = await GoalService.GetAllGoalsAsync();
+            ApplyFilters();
+        }
+        finally
+        {
+            _isLoading = false;
+        }
     }
 
     private async Task AddGoal()
@@ -433,6 +613,7 @@
             _newGoalRecurrence = RecurrenceType.None;
 
             await RefreshGoalsAsync();
+            ShowToast("Goal created successfully! 🎯", ToastType.Success);
         }
     }
 
@@ -462,12 +643,35 @@
         await GoalService.EditGoalAsync(id, _editGoalTitle, _editGoalDescription, _editGoalCategory, _editGoalPriority, _editGoalDueDate, _editGoalRecurrence);
         _editingGoalId = null;
         await RefreshGoalsAsync();
+        ShowToast("Goal updated successfully! ✓", ToastType.Success);
+    }
+
+    private void ConfirmDelete(int goalId, string goalTitle)
+    {
+        _goalIdToDelete = goalId;
+        _confirmTitle = "Delete Goal";
+        _confirmMessage = $"Are you sure you want to delete '{goalTitle}'? This action cannot be undone.";
+        _confirmIcon = "🗑️";
+        _confirmButtonText = "Delete";
+        _confirmButtonClass = "btn-danger";
+        _confirmCallback = EventCallback.Factory.Create(this, async () => await DeleteGoal(_goalIdToDelete));
+        _showConfirmDialog = true;
     }
 
     private async Task DeleteGoal(int id)
     {
-        await GoalService.DeleteGoalAsync(id);
+        _showConfirmDialog = false;
+        var success = await GoalService.DeleteGoalAsync(id);
         await RefreshGoalsAsync();
+        
+        if (success)
+        {
+            ShowToast("Goal deleted successfully.", ToastType.Success);
+        }
+        else
+        {
+            ShowToast("Failed to delete goal. It may not exist.", ToastType.Error);
+        }
     }
 
     private string GetPriorityColor(PriorityLevel priority)
@@ -489,8 +693,26 @@
 
     private async Task ToggleCompletion(int id, bool completed)
     {
-        await GoalService.ToggleGoalCompletedAsync(id, completed);
+        var success = await GoalService.ToggleGoalCompletedAsync(id, completed);
         await RefreshGoalsAsync();
+        
+        if (success)
+        {
+            var message = completed ? "Goal marked as complete! 🎉" : "Goal restored to active.";
+            ShowToast(message, ToastType.Success);
+        }
+        else
+        {
+            ShowToast("Failed to update goal status.", ToastType.Error);
+        }
+    }
+
+    private void ShowToast(string message, ToastType type)
+    {
+        _toastMessage = message;
+        _toastType = type;
+        _showToast = true;
+        StateHasChanged();
     }
 
     // Archived Goals Navigation

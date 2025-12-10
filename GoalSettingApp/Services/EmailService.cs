@@ -2,6 +2,7 @@ using MailKit.Net.Smtp;
 using MailKit.Security;
 using MimeKit;
 using GoalSettingApp.Models;
+using GoalSettingApp.Helpers;
 
 namespace GoalSettingApp.Services
 {
@@ -36,13 +37,13 @@ namespace GoalSettingApp.Services
 
                 var htmlTemplate = await File.ReadAllTextAsync(templatePath);
 
-                // Replace placeholders with actual values
+                // Replace placeholders with actual values (HTML-encoded for security)
                 htmlTemplate = htmlTemplate
-                    .Replace("{{to_name}}", toName)
-                    .Replace("{{task_title}}", taskTitle)
-                    .Replace("{{task_description}}", string.IsNullOrEmpty(taskDescription) ? "No description provided" : taskDescription)
-                    .Replace("{{due_date}}", dueDate.ToString("dddd, MMMM dd, yyyy"))
-                    .Replace("{{reminder_type}}", reminderType)
+                    .Replace("{{to_name}}", HtmlEncoder.Encode(toName))
+                    .Replace("{{task_title}}", HtmlEncoder.Encode(taskTitle))
+                    .Replace("{{task_description}}", HtmlEncoder.Encode(string.IsNullOrEmpty(taskDescription) ? "No description provided" : taskDescription))
+                    .Replace("{{due_date}}", HtmlEncoder.Encode(dueDate.ToString("dddd, MMMM dd, yyyy")))
+                    .Replace("{{reminder_type}}", HtmlEncoder.Encode(reminderType))
                     .Replace("{{app_url}}", Environment.GetEnvironmentVariable("APP_URL") ?? "http://localhost:5125");
 
                 // Create the email message
@@ -123,11 +124,11 @@ namespace GoalSettingApp.Services
                     : "Rest well and tackle these tomorrow! 🌟";
 
                 htmlTemplate = htmlTemplate
-                    .Replace("{{to_name}}", toName)
+                    .Replace("{{to_name}}", HtmlEncoder.Encode(toName))
                     .Replace("{{greeting_emoji}}", greetingEmoji)
                     .Replace("{{greeting_text}}", greetingText)
-                    .Replace("{{intro_message}}", introMessage)
-                    .Replace("{{task_list}}", taskListHtml)
+                    .Replace("{{intro_message}}", HtmlEncoder.Encode(introMessage))
+                    .Replace("{{task_list}}", taskListHtml) // Already encoded in BuildTaskListHtml
                     .Replace("{{closing_message}}", closingMessage)
                     .Replace("{{app_url}}", Environment.GetEnvironmentVariable("APP_URL") ?? "http://localhost:5125");
 
@@ -179,10 +180,14 @@ namespace GoalSettingApp.Services
                 var isOverdue = task.DueDate.HasValue && task.DueDate.Value.Date < DateTime.Today;
                 var dueDateStyle = isOverdue ? "color: #ef4444; font-weight: bold;" : "color: #6366f1;";
 
+                // HTML-encode user-provided content
+                var encodedTitle = HtmlEncoder.Encode(task.Title);
+                var encodedDescription = HtmlEncoder.Encode(string.IsNullOrEmpty(task.Description) ? "No description" : task.Description);
+                
                 html.Append($@"
                 <div style=""background-color: #f9fafb; border-left: 4px solid {priorityColor}; border-radius: 4px; padding: 15px; margin: 10px 0;"">
-                    <h3 style=""color: #1f2937; margin: 0 0 8px 0; font-size: 16px;"">{task.Title}</h3>
-                    <p style=""color: #6b7280; margin: 0 0 10px 0; font-size: 14px;"">{(string.IsNullOrEmpty(task.Description) ? "No description" : task.Description)}</p>
+                    <h3 style=""color: #1f2937; margin: 0 0 8px 0; font-size: 16px;"">{encodedTitle}</h3>
+                    <p style=""color: #6b7280; margin: 0 0 10px 0; font-size: 14px;"">{encodedDescription}</p>
                     <div style=""display: flex; gap: 15px; font-size: 12px;"">
                         <span style=""{dueDateStyle}"">📅 {dueDateText}{(isOverdue ? " (Overdue)" : "")}</span>
                         <span style=""color: {priorityColor}; font-weight: bold;"">● {task.Priority} Priority</span>

@@ -103,6 +103,47 @@ namespace GoalSettingApp.Services
 
             return await GetDailyForecastAsync(latitude, longitude);
         }
+
+        /// <summary>
+        /// Search for cities using OpenWeatherMap Geocoding API
+        /// </summary>
+        /// <param name="query">City name to search for</param>
+        /// <param name="limit">Maximum number of results (default 5)</param>
+        /// <returns>List of matching cities</returns>
+        public async Task<List<GeocodingResult>> SearchCitiesAsync(string query, int limit = 5)
+        {
+            if (string.IsNullOrEmpty(_apiKey))
+            {
+                throw new InvalidOperationException("WEATHER_API_KEY environment variable is not set");
+            }
+
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                return new List<GeocodingResult>();
+            }
+
+            var encodedQuery = Uri.EscapeDataString(query);
+            var url = $"https://api.openweathermap.org/geo/1.0/direct?q={encodedQuery}&limit={limit}&appid={_apiKey}";
+
+            try
+            {
+                var response = await _httpClient.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+
+                var json = await response.Content.ReadAsStringAsync();
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+                var results = JsonSerializer.Deserialize<List<GeocodingResult>>(json, options);
+
+                return results ?? new List<GeocodingResult>();
+            }
+            catch (HttpRequestException ex)
+            {
+                Console.WriteLine($"Error searching cities: {ex.Message}");
+                return new List<GeocodingResult>();
+            }
+        }
     }
 }
-

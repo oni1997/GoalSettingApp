@@ -1,14 +1,76 @@
 ﻿@page "/weather"
 @using GoalSettingApp.Services
 @using GoalSettingApp.Models
+@using Microsoft.AspNetCore.Components.Authorization
 @inject WeatherService WeatherService
+@inject UserSettingsService UserSettingsService
+@inject AuthenticationStateProvider AuthStateProvider
 @rendermode InteractiveServer
 
 <PageTitle>Weather Forecast</PageTitle>
 
-<h1>Weather Forecast - Cape Town</h1>
+<h1>Weather Forecast - @(string.IsNullOrEmpty(cityName) ? "Loading..." : cityName)</h1>
 
 <p>5-day weather forecast from OpenWeatherMap API</p>
+
+<!-- City Search Section -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row align-items-end">
+            <div class="col-md-6">
+                <label class="form-label"><strong>Search for a city:</strong></label>
+                <div class="input-group">
+                    <input type="text" class="form-control" placeholder="Enter city name..."
+                           @bind="searchQuery" @bind:event="oninput" @onkeydown="HandleSearchKeyDown" />
+                    <button class="btn btn-outline-primary" type="button" @onclick="SearchCities" disabled="@isSearching">
+                        @if (isSearching)
+                        {
+                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        }
+                        else
+                        {
+                            <span>Search</span>
+                        }
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-6">
+                @if (!string.IsNullOrEmpty(currentCity))
+                {
+                    <p class="mb-0 text-muted">
+                        <strong>Current city:</strong> @currentCity
+                        @if (isAuthenticated)
+                        {
+                            <span class="badge bg-success ms-2">Saved</span>
+                        }
+                    </p>
+                }
+            </div>
+        </div>
+
+        @if (searchResults != null && searchResults.Any())
+        {
+            <div class="mt-3">
+                <p class="mb-2"><strong>Search Results:</strong></p>
+                <div class="list-group">
+                    @foreach (var result in searchResults)
+                    {
+                        <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+                                @onclick="() => SelectCity(result)">
+                            <span>@result.DisplayName</span>
+                            <span class="badge bg-primary">Select</span>
+                        </button>
+                    }
+                </div>
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(searchMessage))
+        {
+            <div class="alert alert-info mt-3 mb-0">@searchMessage</div>
+        }
+    </div>
+</div>
 
 @if (isLoading)
 {
@@ -173,8 +235,114 @@ else
     private string cityName = "";
     private string country = "";
 
+    // City search variables
+    private string searchQuery = "";
+    private List<GeocodingResult>? searchResults;
+    private bool isSearching = false;
+    private string? searchMessage;
+    private string currentCity = "";
+    private bool isAuthenticated = false;
+
+    // Current location coordinates
+    private double currentLat = -33.9249;
+    private double currentLon = 18.4241;
+    private string currentCountry = "ZA";
+
     protected override async Task OnInitializedAsync()
     {
+        // Check authentication status
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        isAuthenticated = authState.User.Identity?.IsAuthenticated ?? false;
+
+        // Load user's saved city preference
+        await LoadUserSettings();
+        await LoadWeather();
+    }
+
+    private async Task LoadUserSettings()
+    {
+        try
+        {
+            var settings = await UserSettingsService.GetUserSettingsAsync();
+            currentLat = settings.PreferredCityLat;
+            currentLon = settings.PreferredCityLon;
+            currentCity = $"{settings.PreferredCity}, {settings.PreferredCountry}";
+            currentCountry = settings.PreferredCountry;
+        }
+        catch
+        {
+            // Use default Cape Town if settings can't be loaded
+            currentCity = "Cape Town, ZA";
+        }
+    }
+
+    private async Task SearchCities()
+    {
+        if (string.IsNullOrWhiteSpace(searchQuery))
+        {
+            searchMessage = "Please enter a city name to search.";
+            return;
+        }
+
+        isSearching = true;
+        searchMessage = null;
+        searchResults = null;
+        StateHasChanged();
+
+        try
+        {
+            searchResults = await WeatherService.SearchCitiesAsync(searchQuery);
+
+            if (searchResults == null || !searchResults.Any())
+            {
+                searchMessage = $"No cities found matching '{searchQuery}'.";
+            }
+        }
+        catch (Exception ex)
+        {
+            searchMessage = $"Error searching for cities: {ex.Message}";
+        }
+        finally
+        {
+            isSearching = false;
+        }
+    }
+
+    private async Task HandleSearchKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await SearchCities();
+        }
+    }
+
+    private async Task SelectCity(GeocodingResult city)
+    {
+        currentLat = city.Lat;
+        currentLon = city.Lon;
+        currentCity = city.DisplayName;
+        currentCountry = city.Country;
+        searchResults = null;
+        searchQuery = "";
+
+        // Save preference if user is authenticated
+        if (isAuthenticated)
+        {
+            try
+            {
+                await UserSettingsService.SavePreferredCityAsync(city.Name, city.Lat, city.Lon, city.Country);
+                searchMessage = $"Saved {city.DisplayName} as your preferred city!";
+            }
+            catch
+            {
+                searchMessage = "Weather loaded, but couldn't save preference.";
+            }
+        }
+        else
+        {
+            searchMessage = "Sign in to save your preferred city!";
+        }
+
         await LoadWeather();
     }
 
@@ -185,7 +353,7 @@ else
 
         try
         {
-            var forecast = await WeatherService.GetCapeTownForecastAsync();
+            var forecast = await WeatherService.GetForecastAsync(currentLat, currentLon);
 
             if (forecast?.List != null)
             {
@@ -196,7 +364,7 @@ else
                     {
                         Date = g.Key,
                         HourlyForecasts = g.OrderBy(f => f.DateTime).ToList(),
-                        Representative = g.OrderBy(f => Math.Abs((f.DateTime.Hour - 12))).First(), // Closest to noon
+                        Representative = g.OrderBy(f => Math.Abs((f.DateTime.Hour - 12))).First(),
                         MaxTemp = g.Max(f => f.Main?.TempCelsius ?? 0),
                         MinTemp = g.Min(f => f.Main?.TempCelsius ?? 0),
                         AvgHumidity = g.Average(f => f.Main?.Humidity ?? 0),

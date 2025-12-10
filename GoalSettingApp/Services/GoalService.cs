@@ -119,6 +119,13 @@ namespace GoalSettingApp.Services
                 return false;
             }
 
+            // Check if goal exists before attempting deletion
+            var existingGoal = await GetGoalByIdAsync(id);
+            if (existingGoal == null)
+            {
+                return false;
+            }
+
             await _supabase
                 .From<Goal>()
                 .Where(g => g.Id == id && g.UserId == userId)
@@ -169,7 +176,7 @@ namespace GoalSettingApp.Services
         }
 
         /// <summary>
-        /// Gets goals by category for the curret user
+        /// Gets goals by category for the current user
         /// </summary>
         /// <param name="category">The category to filter by</param>
         /// <returns>A list of goals in the specified category</returns>
